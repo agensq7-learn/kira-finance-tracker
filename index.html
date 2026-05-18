@@ -618,34 +618,59 @@ function showSyncToast(msg, isError) {
 
 let _syncTimer = null;
 
-async function syncToSupabase() {
-  if (!_currentSession) return;
-  updateSyncStatus('busy', 'Syncing…');
-  const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('timeout')), 12000)
-  );
+async function _doUpsert(session) {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), 15000);
   try {
-    const { error } = await Promise.race([
-      sb.from('user_data').upsert({
-        user_id: _currentSession.user.id,
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/user_data`, {
+      method: 'POST',
+      signal: ctrl.signal,
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + session.access_token,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({
+        user_id: session.user.id,
         data: data,
         updated_at: new Date().toISOString()
-      }),
-      timeout
-    ]);
-    if (error) {
-      console.error('Sync save error:', error.message);
-      updateSyncStatus('err', 'Sync failed');
-      if (error.code === 'PGRST205') showSyncToast('Sync table missing — run setup SQL in Supabase', true);
-      else showSyncToast('Sync failed: ' + error.message, true);
-    } else {
-      _lastSyncAt = Date.now();
-      const now = new Date();
-      updateSyncStatus('ok', 'Synced ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      })
+    });
+    clearTimeout(tid);
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(body || ('HTTP ' + res.status));
     }
+  } finally {
+    clearTimeout(tid);
+  }
+}
+
+async function syncToSupabase() {
+  if (!_currentSession) return;
+  // Refresh session token before syncing to avoid stale token errors
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return;
+  _currentSession = session;
+
+  updateSyncStatus('busy', 'Syncing…');
+  try {
+    await _doUpsert(session);
+    _lastSyncAt = Date.now();
+    updateSyncStatus('ok', 'Synced ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   } catch (e) {
-    updateSyncStatus('err', e.message === 'timeout' ? 'Sync timed out' : 'Sync error');
-    showSyncToast(e.message === 'timeout' ? 'Sync timed out — check connection' : 'Sync error: ' + e.message, true);
+    // Retry once on failure
+    console.warn('Sync attempt 1 failed:', e.message, '— retrying…');
+    try {
+      await _doUpsert(session);
+      _lastSyncAt = Date.now();
+      updateSyncStatus('ok', 'Synced ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    } catch (e2) {
+      console.error('Sync failed after retry:', e2.message);
+      updateSyncStatus('err', 'Sync failed');
+      showSyncToast(e2.name === 'AbortError' ? 'Sync timed out — check connection' : 'Sync failed: ' + e2.message, true);
+    }
   }
 }
 
