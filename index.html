@@ -621,20 +621,31 @@ let _syncTimer = null;
 async function syncToSupabase() {
   if (!_currentSession) return;
   updateSyncStatus('busy', 'Syncing…');
-  const { error } = await sb.from('user_data').upsert({
-    user_id: _currentSession.user.id,
-    data: data,
-    updated_at: new Date().toISOString()
-  });
-  if (error) {
-    console.error('Sync save error:', error.message);
-    updateSyncStatus('err', 'Sync failed');
-    if (error.code === 'PGRST205') showSyncToast('Sync table missing — run setup SQL in Supabase', true);
-    else showSyncToast('Sync failed: ' + error.message, true);
-  } else {
-    _lastSyncAt = Date.now();
-    const now = new Date();
-    updateSyncStatus('ok', 'Synced ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('timeout')), 12000)
+  );
+  try {
+    const { error } = await Promise.race([
+      sb.from('user_data').upsert({
+        user_id: _currentSession.user.id,
+        data: data,
+        updated_at: new Date().toISOString()
+      }),
+      timeout
+    ]);
+    if (error) {
+      console.error('Sync save error:', error.message);
+      updateSyncStatus('err', 'Sync failed');
+      if (error.code === 'PGRST205') showSyncToast('Sync table missing — run setup SQL in Supabase', true);
+      else showSyncToast('Sync failed: ' + error.message, true);
+    } else {
+      _lastSyncAt = Date.now();
+      const now = new Date();
+      updateSyncStatus('ok', 'Synced ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    }
+  } catch (e) {
+    updateSyncStatus('err', e.message === 'timeout' ? 'Sync timed out' : 'Sync error');
+    showSyncToast(e.message === 'timeout' ? 'Sync timed out — check connection' : 'Sync error: ' + e.message, true);
   }
 }
 
@@ -779,7 +790,6 @@ function mergeDefaults(obj) {
 function persistLocal() { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
 function saveData() {
   persistLocal();
-  updateSyncStatus('busy', 'Saving…');
   clearTimeout(_syncTimer);
   _syncTimer = setTimeout(syncToSupabase, 300);
 }
