@@ -1,0 +1,2004 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<title>Kira</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kira">
+<meta name="theme-color" content="#0a0a0a">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230a0a0a'/%3E%3Ctext x='90' y='118' text-anchor='middle' font-family='-apple-system,sans-serif' font-size='90' font-weight='700' fill='%2334d399'%3E$%3C/text%3E%3C/svg%3E">
+<style>
+  /* ---- Theme variables ---- */
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface-2: #1c1c1c;
+    --border: rgba(255,255,255,0.07);
+    --text: #f0f0f0;
+    --text-dim: #888888;
+    --text-faint: #484848;
+    --accent: #34d399;
+    --accent-dim: #1a3d2e;
+    --accent-text: #021a13;
+    --danger: #f87171;
+    --danger-dim: #3d1a1a;
+    --warn: #fbbf24;
+    --tabs-bg: rgba(10,10,10,0.88);
+    --safe-top: env(safe-area-inset-top);
+    --safe-bottom: env(safe-area-inset-bottom);
+  }
+  :root[data-theme="light"] {
+    --bg: #ebebeb; --surface: #ffffff; --surface-2: #f4f4f4;
+    --border: rgba(0,0,0,0.07); --text: #0a0a0a; --text-dim: #555555; --text-faint: #aaaaaa;
+    --accent: #059669; --accent-dim: #d1fae5; --accent-text: #ffffff;
+    --danger: #dc2626; --danger-dim: #fee2e2;
+    --tabs-bg: rgba(235,235,235,0.90);
+  }
+  @media (prefers-color-scheme: light) {
+    :root[data-theme="auto"] {
+      --bg: #ebebeb; --surface: #ffffff; --surface-2: #f4f4f4;
+      --border: rgba(0,0,0,0.07); --text: #0a0a0a; --text-dim: #555555; --text-faint: #aaaaaa;
+      --accent: #059669; --accent-dim: #d1fae5; --accent-text: #ffffff;
+      --danger: #dc2626; --danger-dim: #fee2e2;
+      --tabs-bg: rgba(235,235,235,0.90);
+    }
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+    font-size: 16px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+  }
+  body { padding-top: var(--safe-top); padding-bottom: calc(68px + var(--safe-bottom)); }
+  header {
+    padding: 20px 20px 4px;
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  }
+  header h1 { font-size: 26px; font-weight: 800; margin: 0; letter-spacing: -0.05em; }
+  header h1 .k { color: var(--accent); }
+  header .header-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+  header .month { color: var(--text-faint); font-size: 13px; font-weight: 500; background: transparent; padding: 0; border: none; }
+  main { padding: 0 14px; max-width: 720px; margin: 0 auto; }
+  .view { display: none; }
+  .view.active { display: block; animation: fade 0.18s ease-out; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  .card { background: var(--surface); border: none; border-radius: 20px; padding: 20px; margin-bottom: 10px; }
+  .card h2 {
+    margin: 0 0 14px; font-size: 11px; font-weight: 500;
+    color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .card h2 .h2-right { float: right; text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--text-faint); font-weight: 500; }
+  .big-num { font-size: 40px; font-weight: 700; letter-spacing: -0.04em; line-height: 1; }
+  .sub { color: var(--text-dim); font-size: 13px; margin-top: 4px; }
+  .pos { color: var(--accent); }
+  .neg { color: var(--danger); }
+
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; }
+  .row + .row { border-top: 1px solid var(--border); }
+  .row .label { color: var(--text-dim); font-size: 14px; }
+  .row .val { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .progress { height: 4px; background: var(--surface-2); border-radius: 999px; overflow: hidden; margin-top: 8px; }
+  .progress > div { height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.3s; }
+  .progress.over > div { background: var(--danger); }
+  .progress.warn > div { background: var(--warn); }
+
+  .txn-list { margin: 0; padding: 0; list-style: none; }
+  .txn-item {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    padding: 14px 0; border-bottom: 1px solid var(--border);
+  }
+  .txn-item:last-child { border-bottom: 0; }
+  .txn-info { min-width: 0; flex: 1; }
+  .txn-cat { font-weight: 600; font-size: 15px; }
+  .txn-cat .badge { font-size: 10px; background: var(--accent-dim); color: var(--accent); padding: 1px 6px; border-radius: 6px; margin-left: 6px; vertical-align: middle; font-weight: 500; }
+  .txn-meta { color: var(--text-faint); font-size: 12px; margin-top: 2px; }
+  .txn-amount { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .txn-actions { display: flex; gap: 4px; }
+  .icon-btn { background: transparent; border: none; color: var(--text-faint); cursor: pointer; padding: 6px 8px; border-radius: 8px; font-size: 16px; }
+  .icon-btn:hover { background: var(--surface-2); color: var(--text); }
+  .icon-btn.pay { color: var(--accent); font-weight: 600; font-size: 13px; padding: 6px 12px; border: 1px solid rgba(52,211,153,0.3); border-radius: 10px; }
+  .icon-btn.pay:hover { background: var(--accent-dim); }
+
+  .empty { text-align: center; color: var(--text-faint); padding: 32px 16px; font-size: 14px; }
+
+  input, select, button, textarea { font-family: inherit; font-size: 16px; }
+  input[type=text], input[type=number], input[type=date], input[type=email], select, textarea {
+    width: 100%; padding: 12px 14px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 12px; color: var(--text);
+    -webkit-appearance: none; appearance: none;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  label { display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 6px; font-weight: 500; }
+  .field { margin-bottom: 12px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .checkbox-row input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
+  .checkbox-row label { margin: 0; }
+
+  .btn { width: 100%; padding: 14px; border: none; border-radius: 14px; background: var(--accent); color: var(--accent-text); font-weight: 600; font-size: 16px; cursor: pointer; transition: transform 0.05s, opacity 0.15s; }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+  .btn.danger { background: var(--danger-dim); color: var(--danger); }
+
+  .tabs {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: var(--tabs-bg); border-top: 1px solid var(--border);
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    padding-bottom: var(--safe-bottom); z-index: 10;
+    backdrop-filter: saturate(180%) blur(24px);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
+  }
+  .tab { background: transparent; border: none; color: var(--text-faint); padding: 10px 2px 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; font-weight: 500; letter-spacing: 0.02em; }
+  .tab .icon { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
+  .tab.active { color: var(--accent); }
+
+  .tab.add-action { padding: 0; align-self: center; align-items: center; justify-content: center; }
+  .tab.add-action .add-circle {
+    width: 46px; height: 46px; border-radius: 50%;
+    background: var(--accent); color: var(--accent-text);
+    font-size: 26px; font-weight: 300; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 20px rgba(52,211,153,0.25); margin-top: -12px;
+  }
+  .tab.add-action:hover .add-circle { transform: scale(1.04); }
+  .tab.add-action:active .add-circle { transform: scale(0.94); }
+  .tab.add-action .add-label { color: var(--accent); font-size: 10px; margin-top: 2px; }
+
+  /* Auth screen */
+  #auth-screen { position: fixed; inset: 0; background: var(--bg); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .auth-box { width: 100%; max-width: 360px; }
+  .auth-logo { font-size: 36px; font-weight: 700; letter-spacing: -0.04em; margin-bottom: 6px; }
+  .auth-logo .k { color: var(--accent); }
+  .auth-sub { font-size: 14px; color: var(--text-dim); margin-bottom: 32px; }
+  .auth-hint { font-size: 13px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.5; }
+  .auth-hint strong { color: var(--text); }
+  .auth-error { font-size: 13px; color: var(--danger); margin-top: 10px; min-height: 18px; }
+  #auth-otp { font-size: 24px; letter-spacing: 0.15em; text-align: center; font-weight: 600; }
+
+  .sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 20; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: var(--surface); border-radius: 24px 24px 0 0;
+    padding: 20px 20px calc(20px + var(--safe-bottom));
+    z-index: 21; transform: translateY(100%); transition: transform 0.25s ease-out;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .sheet.open { transform: translateY(0); }
+  .sheet h3 { margin: 0 0 18px; font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+  .sheet-handle { width: 32px; height: 4px; background: var(--border); border-radius: 2px; margin: -8px auto 18px; }
+
+  .toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .toolbar .btn { padding: 10px; font-size: 14px; }
+
+  .category-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .category-row:last-child { border-bottom: 0; }
+  .category-row .info { flex: 1; min-width: 0; }
+  .category-row .name { font-weight: 600; }
+  .category-row .nums { color: var(--text-dim); font-size: 13px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .category-row .amt { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--text-dim); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+  .pill.asset { background: var(--accent-dim); color: var(--accent); }
+  .pill.debt { background: var(--danger-dim); color: var(--danger); }
+  .pill.warn { background: rgba(251,191,36,0.1); color: var(--warn); }
+  .pill.overdue { background: var(--danger-dim); color: var(--danger); }
+
+  .month-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding: 0 4px; }
+  .month-nav button { background: transparent; border: none; color: var(--text-dim); padding: 4px 2px; font-size: 22px; cursor: pointer; line-height: 1; }
+  .month-nav button:hover { color: var(--text); }
+  .month-nav .label { font-weight: 600; font-size: 15px; }
+
+  .footer-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+  .search-bar { display: flex; gap: 8px; margin-bottom: 10px; }
+  .search-bar input { flex: 1; }
+  .filter-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .filter-chip { padding: 6px 14px; border-radius: 999px; background: transparent; border: 1px solid var(--border); color: var(--text-dim); font-size: 13px; cursor: pointer; }
+  .filter-chip.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .filter-chip:hover { border-color: var(--text-dim); }
+
+  .chart-wrap { position: relative; height: 200px; }
+  .chart-wrap.small { height: 160px; }
+
+  .preset-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .preset-chip { padding: 6px 14px; border-radius: 999px; background: transparent; border: 1px solid var(--border); color: var(--text); font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .preset-chip:hover { border-color: var(--accent); }
+
+  .segmented { display: flex; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: 12px; }
+  .segmented button { flex: 1; background: transparent; border: none; color: var(--text-dim); padding: 8px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+  .segmented button.active { background: var(--surface); color: var(--text); }
+
+  /* Account widget */
+  .acct-btn { display: flex; align-items: center; gap: 7px; background: var(--surface); border: none; cursor: pointer; padding: 5px 10px 5px 7px; border-radius: 20px; color: var(--text); }
+  .acct-avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--surface-2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; color: var(--text-dim); }
+  .acct-dot { width: 7px; height: 7px; border-radius: 50%; position: absolute; bottom: -1px; right: -1px; border: 1.5px solid var(--surface); background: var(--text-faint); transition: background 0.3s; }
+  .acct-dot.ok  { background: var(--accent); }
+  .acct-dot.err { background: var(--danger); }
+  .acct-dot.busy { background: var(--warn); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .acct-label { font-size: 12px; color: var(--text-dim); max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .acct-menu { position: fixed; top: 62px; right: 14px; background: var(--surface); border-radius: 18px; padding: 18px; min-width: 230px; z-index: 60; box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+  .acct-menu-email { font-size: 14px; font-weight: 600; margin-bottom: 4px; word-break: break-all; }
+  .acct-menu-status { font-size: 12px; color: var(--text-dim); margin-bottom: 16px; display: flex; align-items: center; gap: 5px; }
+  .acct-menu-status span { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .acct-menu .btn { width: 100%; margin-bottom: 6px; }
+  .acct-menu .btn:last-child { margin-bottom: 0; }
+  .acct-backdrop { position: fixed; inset: 0; z-index: 59; }
+
+</style>
+</head>
+<body>
+
+<!-- Auth Screen -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo"><span class="k">K</span>ira</div>
+    <p class="auth-sub">Sign in to sync your data across devices</p>
+    <div id="auth-email-step">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email" onkeydown="if(event.key==='Enter')authSendOtp()">
+      </div>
+      <button class="btn primary" id="auth-send-btn" onclick="authSendOtp()" style="width:100%;margin-top:4px">Send Code</button>
+      <div id="auth-email-error" class="auth-error"></div>
+    </div>
+    <div id="auth-otp-step" style="display:none">
+      <p class="auth-hint">Enter the 8-digit code sent to <strong id="auth-email-display"></strong></p>
+      <div class="field">
+        <label>Verification Code</label>
+        <input type="text" id="auth-otp" placeholder="00000000" maxlength="8" inputmode="numeric" autocomplete="one-time-code" onkeydown="if(event.key==='Enter')authVerifyOtp()">
+      </div>
+      <button class="btn primary" id="auth-verify-btn" onclick="authVerifyOtp()" style="width:100%;margin-top:4px">Verify</button>
+      <button class="btn secondary" onclick="authBack()" style="width:100%;margin-top:8px">← Use different email</button>
+      <div id="auth-otp-error" class="auth-error"></div>
+    </div>
+  </div>
+</div>
+
+<header>
+  <h1><span class="k">K</span>ira</h1>
+  <div class="header-right">
+    <div class="month" id="header-month" style="display:none"></div>
+    <button class="acct-btn" id="acct-btn" onclick="toggleAcctMenu()" style="display:none" aria-label="Account">
+      <span class="acct-avatar">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+        </svg>
+        <span class="acct-dot" id="acct-dot"></span>
+      </span>
+      <span class="acct-label" id="acct-label"></span>
+    </button>
+  </div>
+</header>
+
+<!-- Account dropdown -->
+<div class="acct-backdrop" id="acct-backdrop" onclick="closeAcctMenu()" style="display:none"></div>
+<div class="acct-menu" id="acct-menu" style="display:none">
+  <div class="acct-menu-email" id="acct-menu-email"></div>
+  <div class="acct-menu-status" id="acct-menu-status">
+    <span id="acct-status-dot" style="background:var(--text-faint)"></span>
+    <span id="acct-status-text">Not synced</span>
+  </div>
+  <button class="btn secondary" onclick="syncFromSupabase();closeAcctMenu()">Sync Now</button>
+  <button class="btn danger" onclick="authSignOut();closeAcctMenu()">Sign Out</button>
+</div>
+
+<main>
+  <!-- DASHBOARD -->
+  <section class="view active" id="view-dashboard">
+    <div class="month-nav">
+      <button onclick="changeMonth(-1)">‹ Prev</button>
+      <div class="label" id="dash-month-label"></div>
+      <button onclick="changeMonth(1)">Next ›</button>
+    </div>
+
+    <div class="card" id="dash-bills-card" style="display:none">
+      <h2>Bills Due Soon</h2>
+      <div id="dash-bills"></div>
+    </div>
+
+    <div class="card">
+      <h2>This Month</h2>
+      <div style="margin-bottom:18px">
+        <div id="dash-spent" style="font-size:42px;font-weight:700;letter-spacing:-0.04em;line-height:1">SGD 0.00</div>
+        <div id="dash-remaining-label" style="font-size:13px;color:var(--text-faint);margin-top:6px"></div>
+      </div>
+      <div style="height:4px;border-radius:999px;background:var(--surface-2);overflow:hidden;margin-bottom:22px">
+        <div id="dash-spent-bar" style="height:100%;width:0%;background:var(--accent);border-radius:999px;transition:width 0.6s ease"></div>
+      </div>
+      <div id="chart-categories-wrap"></div>
+    </div>
+
+    <div class="card">
+      <h2>Recent</h2>
+      <ul class="txn-list" id="dash-recent"></ul>
+    </div>
+  </section>
+
+  <!-- SUMMARY (formerly TRANSACTIONS) -->
+  <section class="view" id="view-transactions">
+    <div class="card">
+      <h2>All Transactions <span class="h2-right" id="txn-count-label"></span></h2>
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="Search note or category…" oninput="onSearchInput()">
+        <button class="btn secondary" style="width:auto; padding:0 14px" onclick="resetFilters()">Reset</button>
+      </div>
+      <div class="filter-chips" id="category-chips"></div>
+      <div class="field-row">
+        <div class="field" style="margin:0">
+          <label>From</label>
+          <input type="date" id="filter-from">
+        </div>
+        <div class="field" style="margin:0">
+          <label>To</label>
+          <input type="date" id="filter-to">
+        </div>
+      </div>
+      <button class="btn secondary" style="margin-top:8px" onclick="onFilterChange()">Search</button>
+      <ul class="txn-list" id="txn-list" style="margin-top: 12px"></ul>
+    </div>
+  </section>
+
+  <!-- SETTINGS (formerly PLAN) -->
+  <section class="view" id="view-plan">
+    <div class="card">
+      <h2>Monthly Budget by Category</h2>
+      <div id="budget-list"></div>
+      <div class="footer-actions">
+        <button class="btn secondary" onclick="openAddCategory()">+ Add category</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Recurring & Bills</h2>
+      <div id="recurring-list"></div>
+      <div class="footer-actions">
+        <button class="btn secondary" onclick="openAddRecurring()">+ Add recurring / bill</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Quick-Add Presets</h2>
+      <div id="presets-list"></div>
+      <div class="footer-actions">
+        <button class="btn secondary" onclick="openAddPreset()">+ Add preset</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>People</h2>
+      <div id="split-people-list"></div>
+      <div class="footer-actions">
+        <button class="btn secondary" onclick="openAddPerson()">+ Add person</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Currencies</h2>
+      <div class="row"><span class="label">Base currency</span><span class="val">SGD — Singapore Dollar</span></div>
+      <div style="margin-top:12px">
+        <label style="margin-bottom:8px">Other currencies</label>
+        <div id="extra-currencies-list"></div>
+        <div class="footer-actions" style="margin-top:8px">
+          <button class="btn secondary" onclick="openAddCurrency()">+ Add currency</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Settings</h2>
+      <div class="field" style="margin-bottom:0">
+        <label>Appearance</label>
+        <div class="segmented" id="theme-toggle">
+          <button data-theme="auto" onclick="changeTheme('auto')">Auto</button>
+          <button data-theme="light" onclick="changeTheme('light')">Light</button>
+          <button data-theme="dark" onclick="changeTheme('dark')">Dark</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Data</h2>
+      <div class="footer-actions">
+        <button class="btn secondary" onclick="exportData()">Export JSON</button>
+        <button class="btn secondary" onclick="document.getElementById('import-file').click()">Import JSON</button>
+      </div>
+      <input type="file" id="import-file" accept="application/json" style="display:none" onchange="importData(event)">
+      <div class="footer-actions">
+        <button class="btn danger" onclick="resetAll()">Reset all data</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SPLIT -->
+  <section class="view" id="view-split">
+    <div class="month-nav">
+      <button onclick="changeMonth(-1)">‹ Prev</button>
+      <div class="label" id="split-month-label"></div>
+      <button onclick="changeMonth(1)">Next ›</button>
+    </div>
+
+    <div class="card">
+      <h2>Owed To You</h2>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px">
+        <div>
+          <div class="big-num" id="split-month-total">0.00</div>
+          <div class="sub" id="split-month-sub">Outstanding shared costs</div>
+        </div>
+      </div>
+      <div id="split-people-balances"></div>
+    </div>
+
+    <div class="card">
+      <h2>Shared Transactions <span class="h2-right" id="split-txn-scope"></span></h2>
+      <div id="split-person-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+      <div id="split-txns"></div>
+      <div class="footer-actions" style="margin-top:12px">
+        <button class="btn secondary" onclick="exportSplitReport()">Export Report</button>
+        <button class="btn secondary" onclick="copySplitReport()">Copy to Clipboard</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Tabs -->
+<nav class="tabs">
+  <button class="tab active" data-view="dashboard" onclick="switchView('dashboard')">
+    <span class="icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 10.5L11 3.5l8 7V19a1 1 0 01-1 1H14v-5H8v5H4a1 1 0 01-1-1v-8.5z"/>
+    </svg></span>
+    <span>Home</span>
+  </button>
+  <button class="tab" data-view="transactions" onclick="switchView('transactions')">
+    <span class="icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+      <line x1="4" y1="6" x2="18" y2="6"/>
+      <line x1="4" y1="11" x2="15" y2="11"/>
+      <line x1="4" y1="16" x2="11" y2="16"/>
+    </svg></span>
+    <span>Summary</span>
+  </button>
+  <button class="tab add-action" onclick="openAddTxn()" aria-label="Add transaction">
+    <span class="add-circle">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+        <line x1="12" y1="4" x2="12" y2="20"/>
+        <path d="M16.5 8.5C16 7 14.3 6 12 6 9.2 6 7.5 7.5 7.5 9.5c0 2.2 2.2 3.2 4.5 3.8 2.5.7 4.5 1.8 4.5 4C16.5 19 14.8 20.5 12 20.5c-2.5 0-4.3-1.2-5-3"/>
+      </svg>
+    </span>
+  </button>
+  <button class="tab" data-view="split" onclick="switchView('split')">
+    <span class="icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="8" cy="8" r="3"/>
+      <path d="M2 20c0-3.5 2.7-5.5 6-5.5"/>
+      <circle cx="15" cy="8" r="3"/>
+      <path d="M21 20c0-3.5-2.7-5.5-6-5.5"/>
+    </svg></span>
+    <span>Split</span>
+  </button>
+  <button class="tab" data-view="plan" onclick="switchView('plan')">
+    <span class="icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+      <line x1="3" y1="7" x2="6.5" y2="7"/>
+      <circle cx="9.5" cy="7" r="3"/>
+      <line x1="12.5" y1="7" x2="19" y2="7"/>
+      <line x1="3" y1="15" x2="11.5" y2="15"/>
+      <circle cx="14.5" cy="15" r="3"/>
+      <line x1="17.5" y1="15" x2="19" y2="15"/>
+    </svg></span>
+    <span>Settings</span>
+  </button>
+</nav>
+
+<!-- Bottom sheet -->
+<div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div id="sheet-content"></div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<script>
+
+// ---- Supabase ----
+const SUPABASE_URL = 'https://uvnldqcqndnfbejmixcl.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2bmxkcWNxbmRuZmJlam1peGNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NDUxNDYsImV4cCI6MjA5NDMyMTE0Nn0.QdQKRdo8L05uBcyffC_HFTAD5-5B2JhEm0TxOv_rrz0';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let _authEmail = '';
+let _currentSession = null;
+let _syncStatus = { state: 'idle', text: 'Not synced' };
+
+function updateSyncStatus(state, text) {
+  _syncStatus = { state, text };
+  const dot = document.getElementById('acct-dot');
+  const sdot = document.getElementById('acct-status-dot');
+  const stxt = document.getElementById('acct-status-text');
+  const colorMap = { ok: 'var(--accent)', err: 'var(--danger)', busy: 'var(--warn)', idle: 'var(--text-faint)' };
+  const cls = { ok: 'ok', err: 'err', busy: 'busy', idle: '' };
+  if (dot) dot.className = 'acct-dot ' + (cls[state] || '');
+  if (sdot) sdot.style.background = colorMap[state] || 'var(--text-faint)';
+  if (stxt) stxt.textContent = text;
+}
+
+function toggleAcctMenu() {
+  const menu = document.getElementById('acct-menu');
+  const bd = document.getElementById('acct-backdrop');
+  const open = menu.style.display !== 'none';
+  menu.style.display = open ? 'none' : 'block';
+  bd.style.display = open ? 'none' : 'block';
+}
+function closeAcctMenu() {
+  document.getElementById('acct-menu').style.display = 'none';
+  document.getElementById('acct-backdrop').style.display = 'none';
+}
+
+function showAcctWidget(email) {
+  const btn = document.getElementById('acct-btn');
+  const lbl = document.getElementById('acct-label');
+  const menuEmail = document.getElementById('acct-menu-email');
+  if (btn) btn.style.display = 'flex';
+  if (lbl) lbl.textContent = email.split('@')[0];
+  if (menuEmail) menuEmail.textContent = email;
+}
+function hideAcctWidget() {
+  const btn = document.getElementById('acct-btn');
+  if (btn) btn.style.display = 'none';
+  closeAcctMenu();
+}
+
+async function authSendOtp() {
+  const email = document.getElementById('auth-email').value.trim();
+  document.getElementById('auth-email-error').textContent = '';
+  if (!email) { document.getElementById('auth-email-error').textContent = 'Please enter your email.'; return; }
+  const btn = document.getElementById('auth-send-btn');
+  btn.disabled = true; btn.textContent = 'Sending…';
+  const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+  btn.disabled = false; btn.textContent = 'Send Code';
+  if (error) { document.getElementById('auth-email-error').textContent = error.message; return; }
+  _authEmail = email;
+  document.getElementById('auth-email-display').textContent = email;
+  document.getElementById('auth-email-step').style.display = 'none';
+  document.getElementById('auth-otp-step').style.display = 'block';
+  setTimeout(() => document.getElementById('auth-otp').focus(), 100);
+}
+
+async function authVerifyOtp() {
+  const token = document.getElementById('auth-otp').value.trim();
+  document.getElementById('auth-otp-error').textContent = '';
+  if (token.length !== 8) { document.getElementById('auth-otp-error').textContent = 'Enter the full 8-digit code.'; return; }
+  const btn = document.getElementById('auth-verify-btn');
+  btn.disabled = true; btn.textContent = 'Verifying…';
+  const { error } = await sb.auth.verifyOtp({ email: _authEmail, token, type: 'email' });
+  btn.disabled = false; btn.textContent = 'Verify';
+  if (error) { document.getElementById('auth-otp-error').textContent = error.message; }
+}
+
+function authBack() {
+  document.getElementById('auth-otp-step').style.display = 'none';
+  document.getElementById('auth-email-step').style.display = 'block';
+  document.getElementById('auth-otp-error').textContent = '';
+  document.getElementById('auth-otp').value = '';
+  setTimeout(() => document.getElementById('auth-email').focus(), 100);
+}
+
+async function authSignOut() {
+  if (!confirm('Sign out? Your data is saved in the cloud.')) return;
+  await sb.auth.signOut();
+}
+
+function showSyncToast(msg, isError) {
+  let t = document.getElementById('sync-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'sync-toast';
+    t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);padding:8px 16px;border-radius:20px;font-size:13px;font-weight:500;z-index:999;pointer-events:none;transition:opacity 0.4s;white-space:nowrap';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.background = isError ? 'var(--danger-dim)' : 'var(--accent-dim)';
+  t.style.color = isError ? 'var(--danger)' : 'var(--accent)';
+  t.style.opacity = '1';
+  clearTimeout(t._hide);
+  t._hide = setTimeout(() => { t.style.opacity = '0'; }, 3000);
+}
+
+let _syncTimer = null;
+
+async function syncToSupabase() {
+  if (!_currentSession) return;
+  updateSyncStatus('busy', 'Syncing…');
+  const { error } = await sb.from('user_data').upsert({
+    user_id: _currentSession.user.id,
+    data: data,
+    updated_at: new Date().toISOString()
+  });
+  if (error) {
+    console.error('Sync save error:', error.message);
+    updateSyncStatus('err', 'Sync failed');
+    if (error.code === 'PGRST205') showSyncToast('Sync table missing — run setup SQL in Supabase', true);
+    else showSyncToast('Sync failed: ' + error.message, true);
+  } else {
+    const now = new Date();
+    updateSyncStatus('ok', 'Synced ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  }
+}
+
+async function syncFromSupabase() {
+  if (!_currentSession) { showSyncToast('Not signed in', true); return; }
+  showSyncToast('Syncing…', false);
+  const { data: row, error } = await sb.from('user_data').select('data').eq('user_id', _currentSession.user.id).single();
+  if (error) {
+    if (error.code === 'PGRST116') {
+      await syncToSupabase();
+      showSyncToast('Local data uploaded to cloud ✓', false);
+    } else if (error.code === 'PGRST205') {
+      showSyncToast('Sync table missing — run setup SQL in Supabase', true);
+    } else {
+      showSyncToast('Sync failed: ' + error.message, true);
+    }
+    return;
+  }
+  if (row && row.data) { data = mergeDefaults(row.data); persistLocal(); render(); }
+  const now = new Date();
+  updateSyncStatus('ok', 'Synced ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  showSyncToast('Synced from cloud ✓', false);
+}
+
+sb.auth.onAuthStateChange(async (event, session) => {
+  _currentSession = session;
+  const screen = document.getElementById('auth-screen');
+  if (session) {
+    screen.style.display = 'none';
+    showAcctWidget(session.user.email);
+    // SIGNED_IN = fresh OTP login; INITIAL_SESSION = returning user on page reload
+    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+      const { data: row, error } = await sb.from('user_data').select('data').eq('user_id', _currentSession.user.id).single();
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No cloud data yet — upload local data now
+          await syncToSupabase();
+          setTimeout(() => showSyncToast('Local data uploaded to cloud ✓', false), 300);
+        } else if (error.code === 'PGRST205') {
+          showSyncToast('Sync table missing — run setup SQL in Supabase', true);
+        } else {
+          console.error('Sync load error:', error.message);
+          showSyncToast('Sync failed: ' + error.message, true);
+        }
+        return;
+      }
+      if (row && row.data) { data = mergeDefaults(row.data); persistLocal(); render(); setTimeout(() => showSyncToast('Data loaded from cloud ✓', false), 300); }
+    }
+  } else {
+    screen.style.display = 'flex';
+    hideAcctWidget();
+  }
+});
+
+const BASE_CURRENCY = 'SGD';
+const ALL_CURRENCIES = ['SGD', 'MYR', 'USD', 'EUR', 'GBP', 'AUD', 'JPY', 'THB', 'IDR', 'CNY'];
+
+const STORAGE_KEY = 'finance-tracker-v1';
+const DEFAULT_DATA = {
+  transactions: [],   // {id, date, amount, currency, category, note, shared?, recurringId?}
+  budgets: {
+    'Groceries': 400, 'Dining': 150, 'Transport': 100,
+    'Bills': 200, 'Entertainment': 80, 'Other': 100
+  },
+  accounts: [],
+  recurring: [],   // {id, name, amount, currency, category, frequency, nextDue, autoLog}
+  presets: [],     // {id, label, amount, category, note}
+  people: [],      // {id, name}
+  settings: { theme: 'auto', extraCurrencies: ['MYR'], exchangeRates: { MYR: 0.31 } }
+};
+
+let data = loadData();
+let currentMonth = monthKey(new Date());
+let charts = {};
+
+// Filter state for the Activity view
+function defaultDateRange() {
+  const today = new Date();
+  const from = new Date(today); from.setDate(today.getDate() - 6);
+  const pad = n => String(n).padStart(2,'0');
+  const fmt2 = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  return { from: fmt2(from), to: fmt2(today) };
+}
+let filters = { search: '', category: '', ...defaultDateRange() };
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return structuredClone(DEFAULT_DATA);
+    const parsed = JSON.parse(raw);
+    return mergeDefaults(parsed);
+  } catch (e) { return structuredClone(DEFAULT_DATA); }
+}
+function mergeDefaults(obj) {
+  const merged = structuredClone(DEFAULT_DATA);
+  for (const k of Object.keys(obj)) merged[k] = obj[k];
+  merged.settings = { ...DEFAULT_DATA.settings, ...(obj.settings || {}) };
+  // Migrate old single-currency setting to extraCurrencies
+  if (merged.settings.currency) {
+    const old = merged.settings.currency;
+    if (old !== BASE_CURRENCY && !merged.settings.extraCurrencies) {
+      merged.settings.extraCurrencies = [old];
+    }
+    delete merged.settings.currency;
+  }
+  if (!Array.isArray(merged.settings.extraCurrencies)) merged.settings.extraCurrencies = [];
+  if (!merged.settings.exchangeRates || typeof merged.settings.exchangeRates !== 'object') merged.settings.exchangeRates = {};
+  for (const k of ['recurring', 'presets', 'transactions', 'accounts', 'people']) {
+    if (!Array.isArray(merged[k])) merged[k] = [];
+  }
+  return merged;
+}
+function persistLocal() { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+function saveData() {
+  persistLocal();
+  updateSyncStatus('busy', 'Saving…');
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(syncToSupabase, 300);
+}
+
+//// ---------- Helpers ----------
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function monthKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+function monthLabel(key) {
+  const [y,m] = key.split('-').map(Number);
+  return new Date(y, m-1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+}
+function fmtIn(n, currency) {
+  const code = currency || BASE_CURRENCY;
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: code, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  } catch (e) {
+    const sign = n < 0 ? '-' : '';
+    return sign + code + ' ' + Math.abs(n).toFixed(2);
+  }
+}
+function fmt(n) { return fmtIn(n, BASE_CURRENCY); }
+function toBase(amount, currency) {
+  if (!currency || currency === BASE_CURRENCY) return amount;
+  const rate = (data.settings.exchangeRates || {})[currency];
+  return rate ? amount * rate : amount;
+}
+function activeCurrencies() {
+  return [BASE_CURRENCY, ...(data.settings.extraCurrencies || [])];
+}
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function txnsForMonth(key) { return data.transactions.filter(t => t.date.startsWith(key)); }
+function changeMonth(delta) {
+  const [y,m] = currentMonth.split('-').map(Number);
+  const d = new Date(y, m-1+delta, 1);
+  currentMonth = monthKey(d);
+  render();
+}
+function advanceDate(dateStr, frequency) {
+  const [y,m,day] = dateStr.split('-').map(Number);
+  const d = new Date(y, m-1, day);
+  switch (frequency) {
+    case 'weekly': d.setDate(d.getDate() + 7); break;
+    case 'biweekly': d.setDate(d.getDate() + 14); break;
+    case 'monthly': d.setMonth(d.getMonth() + 1); break;
+    case 'yearly': d.setFullYear(d.getFullYear() + 1); break;
+  }
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function daysBetween(a, b) {
+  const da = new Date(a+'T00:00:00');
+  const db = new Date(b+'T00:00:00');
+  return Math.round((db - da) / 86400000);
+}
+
+//// ---------- Shared cost ----------
+function getPerson(id) { return data.people.find(p => p.id === id); }
+function personName(id) { const p = getPerson(id); return p ? p.name : '(deleted)'; }
+
+// Compute shares for a transaction. Returns { userShare, byPerson: {id: amount} }.
+// - For 'equal' split: total / (N + 1) per person, where N = sharedWith.length
+// - For 'custom': customShares object holds exact amounts per person; user pays the rest
+function calcShares(t) {
+  if (!t.shared || !t.shared.people || t.shared.people.length === 0) {
+    return { userShare: t.amount, byPerson: {} };
+  }
+  const pids = t.shared.people;
+  if (t.shared.split === 'custom') {
+    const byPerson = {};
+    let othersTotal = 0;
+    for (const pid of pids) {
+      const v = Number((t.shared.customShares || {})[pid]) || 0;
+      byPerson[pid] = v;
+      othersTotal += v;
+    }
+    return { userShare: Math.max(0, t.amount - othersTotal), byPerson };
+  }
+  // equal split
+  const each = t.amount / (pids.length + 1);
+  const byPerson = {};
+  for (const pid of pids) byPerson[pid] = each;
+  return { userShare: each, byPerson };
+}
+
+function userShareOf(t) { return toBase(calcShares(t).userShare, t.currency); }
+
+// Per-person outstanding amounts across transactions matching filter (or all).
+function outstandingByPerson(filterFn) {
+  const out = {};
+  for (const t of data.transactions) {
+    if (!t.shared || !t.shared.people || t.shared.people.length === 0) continue;
+    if (filterFn && !filterFn(t)) continue;
+    const settled = (t.shared.settled) || {};
+    const { byPerson } = calcShares(t);
+    for (const [pid, amt] of Object.entries(byPerson)) {
+      if (settled[pid]) continue;
+      out[pid] = (out[pid] || 0) + toBase(amt, t.currency);
+    }
+  }
+  return out;
+}
+
+//// ---------- Recurring & bills ----------
+function processRecurring() {
+  // Auto-log overdue recurring transactions; advance their nextDue forward.
+  const today = todayISO();
+  let changed = false;
+  for (const rec of data.recurring) {
+    if (!rec.autoLog) continue;
+    while (rec.nextDue && rec.nextDue <= today) {
+      data.transactions.push({
+        id: uid(), date: rec.nextDue, amount: rec.amount,
+        currency: rec.currency || BASE_CURRENCY,
+        category: rec.category, note: rec.name, recurringId: rec.id
+      });
+      rec.nextDue = advanceDate(rec.nextDue, rec.frequency);
+      changed = true;
+    }
+  }
+  if (changed) saveData();
+}
+function billsDueSoon() {
+  const today = todayISO();
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() + 7);
+  const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth()+1).padStart(2,'0')}-${String(cutoff.getDate()).padStart(2,'0')}`;
+  return data.recurring
+    .filter(r => !r.autoLog && r.nextDue && r.nextDue <= cutoffStr)
+    .sort((a,b) => a.nextDue.localeCompare(b.nextDue));
+}
+function payBill(id) {
+  const rec = data.recurring.find(r => r.id === id);
+  if (!rec) return;
+  data.transactions.push({
+    id: uid(), date: todayISO(), amount: rec.amount,
+    currency: rec.currency || BASE_CURRENCY,
+    category: rec.category, note: rec.name, recurringId: rec.id
+  });
+  rec.nextDue = advanceDate(rec.nextDue, rec.frequency);
+  saveData(); render();
+}
+
+//// ---------- Theme ----------
+function applyTheme() {
+  const t = (data.settings && data.settings.theme) || 'auto';
+  document.documentElement.dataset.theme = t;
+  document.querySelectorAll('#theme-toggle button').forEach(b => b.classList.toggle('active', b.dataset.theme === t));
+}
+function changeTheme(t) {
+  data.settings.theme = t;
+  saveData();
+  applyTheme();
+  // Re-render charts since text colors changed
+  renderCharts();
+}
+
+//// ---------- Views ----------
+function switchView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
+  render();
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+function render() {
+  document.getElementById('header-month').textContent = monthLabel(currentMonth);
+  renderDashboard();
+  renderTransactions();
+  renderPlan();
+  renderSplit();
+  renderCharts();
+}
+
+function renderDashboard() {
+  document.getElementById('dash-month-label').textContent = monthLabel(currentMonth);
+  const monthTxns = txnsForMonth(currentMonth);
+  const spent = monthTxns.reduce((s,t) => s + userShareOf(t), 0);
+  document.getElementById('dash-spent').textContent = fmt(spent);
+
+  // Bills due soon widget
+  const bills = billsDueSoon();
+  const billsCard = document.getElementById('dash-bills-card');
+  if (bills.length > 0) {
+    billsCard.style.display = 'block';
+    document.getElementById('dash-bills').innerHTML = bills.map(b => {
+      const today = todayISO();
+      const overdue = b.nextDue < today;
+      const days = daysBetween(today, b.nextDue);
+      const dueLabel = overdue ? 'Overdue' : (days === 0 ? 'Due today' : `Due in ${days} day${days===1?'':'s'}`);
+      return `
+        <div class="category-row">
+          <div class="info">
+            <div class="name">${escapeHtml(b.name)} <span class="pill ${overdue?'overdue':'warn'}">${dueLabel}</span></div>
+            <div class="nums">${fmt(b.amount)} · ${escapeHtml(b.category)}</div>
+          </div>
+          <button class="icon-btn pay" onclick="payBill('${b.id}')">Pay</button>
+        </div>`;
+    }).join('');
+  } else {
+    billsCard.style.display = 'none';
+  }
+
+  const totalBudget = Object.values(data.budgets).reduce((s,b) => s+b, 0);
+  const spentBarEl = document.getElementById('dash-spent-bar');
+  if (totalBudget > 0) {
+    const pct = Math.min(100, (spent / totalBudget) * 100);
+    spentBarEl.style.width = `${pct.toFixed(1)}%`;
+    spentBarEl.style.background = pct >= 100 ? 'var(--danger)' : pct > 80 ? 'var(--warn)' : 'var(--accent)';
+    const remaining = totalBudget - spent;
+    document.getElementById('dash-remaining-label').textContent =
+      remaining >= 0 ? `${fmt(remaining)} of ${fmt(totalBudget)} remaining` : `${fmt(-remaining)} over budget`;
+  } else {
+    spentBarEl.style.width = '0%';
+    document.getElementById('dash-remaining-label').textContent = 'No budget set · go to Settings';
+  }
+
+  const byCat = {};
+  monthTxns.forEach(t => { byCat[t.category] = (byCat[t.category]||0) + userShareOf(t); });
+  const catEntries = Object.entries(byCat).sort((a,b) => b[1]-a[1]);
+  document.getElementById('chart-categories-wrap').innerHTML = catEntries.length === 0 ? '' : catEntries.map(([name, amt]) => {
+      const budget = data.budgets[name] || 0;
+      const noBudget = budget === 0;
+      const isOver  = !noBudget && amt > budget;
+      const pct     = noBudget ? 0 : Math.min(100, (amt / budget) * 100);
+      const barColor = noBudget ? 'var(--accent)' : isOver ? 'var(--danger)' : pct > 80 ? 'var(--warn)' : 'var(--accent)';
+      const balance  = noBudget ? null : budget - amt;
+      const rightLabel = balance === null ? fmt(amt) : balance >= 0 ? `${fmt(balance)} left` : `${fmt(-balance)} over`;
+      return `
+        <div style="margin-bottom:18px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px">
+            <span style="font-size:14px;font-weight:500">${escapeHtml(name)}</span>
+            <span style="font-size:12px;color:var(--text-faint)">${rightLabel}</span>
+          </div>
+          <div style="height:4px;border-radius:999px;background:var(--surface-2);overflow:hidden">
+            <div style="height:100%;width:${pct.toFixed(1)}%;background:${barColor};border-radius:999px;transition:width 0.4s ease"></div>
+          </div>
+        </div>`;
+    }).join('');
+
+  const recent = [...monthTxns].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+  const recEl = document.getElementById('dash-recent');
+  recEl.innerHTML = recent.length === 0
+    ? '<div class="empty">Tap + to add your first transaction</div>'
+    : recent.map(txnRow).join('');
+}
+
+function applyFilters(txns) {
+  const q = filters.search.toLowerCase().trim();
+  return txns.filter(t => {
+    if (filters.category && t.category !== filters.category) return false;
+    if (filters.from && t.date < filters.from) return false;
+    if (filters.to && t.date > filters.to) return false;
+    if (q) {
+      const hay = `${t.category} ${t.note||''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function renderTransactions() {
+  document.getElementById('filter-from').value = filters.from;
+  document.getElementById('filter-to').value = filters.to;
+  // Build category chip filter
+  const chipsEl = document.getElementById('category-chips');
+  const cats = [...new Set(data.transactions.map(t => t.category))].sort();
+  chipsEl.innerHTML = cats.map(c => `
+    <button class="filter-chip ${filters.category===c?'active':''}" onclick="setCategoryFilter('${escapeAttr(c)}')">${escapeHtml(c)}</button>
+  `).join('');
+
+  const filtered = applyFilters(data.transactions);
+  const sorted = [...filtered].sort((a,b)=>b.date.localeCompare(a.date));
+
+  document.getElementById('txn-count-label').textContent =
+    filtered.length === data.transactions.length
+      ? `${data.transactions.length} total`
+      : `${filtered.length} of ${data.transactions.length}`;
+
+  const el = document.getElementById('txn-list');
+  el.innerHTML = sorted.length === 0
+    ? '<div class="empty">No transactions match your filters</div>'
+    : sorted.map(txnRow).join('');
+
+}
+
+function setCategoryFilter(cat) {
+  filters.category = filters.category === cat ? '' : cat;
+  renderTransactions();
+}
+function onFilterChange() {
+  filters.search = document.getElementById('search-input').value;
+  filters.from = document.getElementById('filter-from').value;
+  filters.to = document.getElementById('filter-to').value;
+  renderTransactions();
+}
+function onSearchInput() {
+  filters.search = document.getElementById('search-input').value;
+  renderTransactions();
+}
+function resetFilters() {
+  filters = { search: '', category: '', ...defaultDateRange() };
+  document.getElementById('search-input').value = '';
+  document.getElementById('filter-from').value = filters.from;
+  document.getElementById('filter-to').value = filters.to;
+  renderTransactions();
+}
+
+function txnRow(t) {
+  const dt = new Date(t.date+'T00:00:00');
+  const dateStr = dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const recBadge = t.recurringId ? ' <span class="badge">recurring</span>' : '';
+  const shared = t.shared && t.shared.people && t.shared.people.length > 0;
+  const shareBadge = shared ? ' <span class="badge">shared</span>' : '';
+  const myShare = shared ? userShareOf(t) : null;
+  const sharedMeta = shared
+    ? ` · with ${t.shared.people.map(personName).join(', ')} · your share ${fmt(myShare)}`
+    : '';
+  const currency = t.currency || BASE_CURRENCY;
+  const amtDisplay = fmtIn(t.amount, currency);
+  const sgdLine = currency !== BASE_CURRENCY
+    ? `<div style="font-size:11px;color:var(--text-faint);margin-top:1px">${fmt(toBase(t.amount, currency))}</div>`
+    : '';
+  return `<li class="txn-item">
+    <div class="txn-info">
+      <div class="txn-cat">${escapeHtml(t.category)}${recBadge}${shareBadge}</div>
+      <div class="txn-meta">${dateStr}${t.note?' · '+escapeHtml(t.note):''}${sharedMeta}</div>
+    </div>
+    <div class="txn-amount" style="text-align:right">${amtDisplay}${sgdLine}</div>
+    <div class="txn-actions">
+      <button class="icon-btn" onclick="editTxn('${t.id}')" aria-label="Edit">✎</button>
+      <button class="icon-btn" onclick="deleteTxn('${t.id}')" aria-label="Delete">×</button>
+    </div>
+  </li>`;
+}
+
+function renderNetWorth() {
+  const assets = data.accounts.filter(a => a.type==='asset').reduce((s,a)=>s+a.balance,0);
+  const debts = data.accounts.filter(a => a.type==='debt').reduce((s,a)=>s+a.balance,0);
+  document.getElementById('nw-total').textContent = fmt(assets - debts);
+  document.getElementById('nw-assets').textContent = fmt(assets);
+  document.getElementById('nw-debts').textContent = fmt(debts);
+  const el = document.getElementById('nw-list');
+  if (data.accounts.length === 0) { el.innerHTML = '<div class="empty">No accounts yet</div>'; return; }
+  el.innerHTML = data.accounts.map(a => `
+    <div class="category-row">
+      <div class="info">
+        <div class="name">${escapeHtml(a.name)} <span class="pill ${a.type}">${a.type}</span></div>
+        <div class="nums">${a.type==='debt'?'You owe':'Balance'}</div>
+      </div>
+      <div class="amt ${a.type==='asset'?'pos':'neg'}">${fmt(a.balance)}</div>
+      <div class="txn-actions">
+        <button class="icon-btn" onclick="editAccount('${a.id}')" aria-label="Edit">✎</button>
+        <button class="icon-btn" onclick="deleteAccount('${a.id}')" aria-label="Delete">×</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderPlan() {
+  const budgetEl = document.getElementById('budget-list');
+  const budgetEntries = Object.entries(data.budgets);
+  if (budgetEntries.length === 0) {
+    budgetEl.innerHTML = '<div class="empty">No categories yet</div>';
+  } else {
+    const monthTxns = txnsForMonth(currentMonth);
+    budgetEl.innerHTML = budgetEntries.map(([name, limit]) => {
+      const spent = monthTxns.filter(t=>t.category===name).reduce((s,t)=>s+userShareOf(t),0);
+      const pct = limit > 0 ? Math.min(100, (spent/limit)*100) : 0;
+      const cls = spent > limit ? 'over' : (spent > limit*0.8 ? 'warn' : '');
+      return `
+        <div class="category-row">
+          <div class="info">
+            <div class="name">${escapeHtml(name)}</div>
+            <div class="nums">${fmt(spent)} of ${fmt(limit)}</div>
+            <div class="progress ${cls}"><div style="width:${pct}%"></div></div>
+          </div>
+          <div class="txn-actions">
+            <button class="icon-btn" onclick="editBudget('${escapeAttr(name)}')" aria-label="Edit">✎</button>
+            <button class="icon-btn" onclick="deleteCategory('${escapeAttr(name)}')" aria-label="Delete">×</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  const recEl = document.getElementById('recurring-list');
+  if (data.recurring.length === 0) {
+    recEl.innerHTML = '<div class="empty">No recurring transactions or bills yet</div>';
+  } else {
+    const today = todayISO();
+    recEl.innerHTML = [...data.recurring]
+      .sort((a,b) => (a.nextDue||'').localeCompare(b.nextDue||''))
+      .map(r => {
+        const days = r.nextDue ? daysBetween(today, r.nextDue) : null;
+        const overdue = r.nextDue && r.nextDue < today;
+        let dueLabel;
+        if (overdue && !r.autoLog) dueLabel = `<span class="pill overdue">Overdue</span>`;
+        else if (days === 0) dueLabel = `<span class="pill warn">Due today</span>`;
+        else if (days > 0 && days <= 7) dueLabel = `<span class="pill warn">Due in ${days}d</span>`;
+        else dueLabel = '';
+        const typeLabel = r.autoLog ? 'Auto' : 'Bill';
+        return `
+          <div class="category-row">
+            <div class="info">
+              <div class="name">${escapeHtml(r.name)} <span class="pill">${typeLabel}</span> ${dueLabel}</div>
+              <div class="nums">${fmt(r.amount)} · ${escapeHtml(r.category)} · ${r.frequency} · next ${r.nextDue || '—'}</div>
+            </div>
+            <div class="txn-actions">
+              ${!r.autoLog ? `<button class="icon-btn pay" onclick="payBill('${r.id}')">Pay</button>` : ''}
+              <button class="icon-btn" onclick="editRecurring('${r.id}')" aria-label="Edit">✎</button>
+              <button class="icon-btn" onclick="deleteRecurring('${r.id}')" aria-label="Delete">×</button>
+            </div>
+          </div>`;
+      }).join('');
+  }
+
+  const presetsEl = document.getElementById('presets-list');
+  if (data.presets.length === 0) {
+    presetsEl.innerHTML = '<div class="empty">No presets yet — save common transactions for one-tap entry</div>';
+  } else {
+    presetsEl.innerHTML = data.presets.map(p => `
+      <div class="category-row">
+        <div class="info">
+          <div class="name">${escapeHtml(p.label)}</div>
+          <div class="nums">${fmt(p.amount)} · ${escapeHtml(p.category)}${p.note?' · '+escapeHtml(p.note):''}</div>
+        </div>
+        <div class="txn-actions">
+          <button class="icon-btn" onclick="deletePreset('${p.id}')" aria-label="Delete">×</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  const peopleListEl = document.getElementById('split-people-list');
+  if (peopleListEl) {
+    if (data.people.length === 0) {
+      peopleListEl.innerHTML = '<div class="empty">No people yet — tap "+ Add person" to start</div>';
+    } else {
+      peopleListEl.innerHTML = data.people.map(p => `
+        <div class="category-row">
+          <div class="info"><div class="name">${escapeHtml(p.name)}</div></div>
+          <div class="txn-actions">
+            <button class="icon-btn" onclick="editPerson('${p.id}')" aria-label="Edit">✎</button>
+            <button class="icon-btn" onclick="deletePerson('${p.id}')" aria-label="Delete">×</button>
+          </div>
+        </div>`).join('');
+    }
+  }
+
+  const extrasEl = document.getElementById('extra-currencies-list');
+  const extras = data.settings.extraCurrencies || [];
+  if (extras.length === 0) {
+    extrasEl.innerHTML = '<div class="empty" style="padding:8px 0;">No other currencies — tap "+ Add currency" to enable</div>';
+  } else {
+    extrasEl.innerHTML = extras.map(c => {
+      const rate = (data.settings.exchangeRates || {})[c];
+      const rateLabel = rate ? `1 ${escapeHtml(c)} = ${rate} SGD` : 'Rate not set';
+      return `
+        <div class="category-row">
+          <div class="info">
+            <div class="name">${escapeHtml(c)}</div>
+            <div class="nums">${rateLabel}</div>
+          </div>
+          <div class="txn-actions">
+            <button class="icon-btn" onclick="openEditCurrency('${escapeAttr(c)}')" aria-label="Edit">✎</button>
+            <button class="icon-btn" onclick="deleteCurrency('${escapeAttr(c)}')" aria-label="Delete">×</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+}
+
+function renderSplit() {
+  document.getElementById('split-month-label').textContent = monthLabel(currentMonth);
+
+  // Outstanding totals
+  const inMonth = t => t.date.startsWith(currentMonth);
+  const monthBalances = outstandingByPerson(inMonth);
+  const allBalances = outstandingByPerson();
+  const monthTotal = Object.values(monthBalances).reduce((s,v) => s+v, 0);
+  const allTotal = Object.values(allBalances).reduce((s,v) => s+v, 0);
+
+  document.getElementById('split-month-total').textContent = fmt(monthTotal);
+  document.getElementById('split-month-sub').textContent =
+    allTotal > monthTotal ? `Outstanding shared costs · ${fmt(allTotal)} across all months` : 'Outstanding shared costs';
+
+  // Merged "Owed To You" + "By Person"
+  const balEl = document.getElementById('split-people-balances');
+  const peopleWithBalances = data.people.map(p => ({ p, owed: allBalances[p.id] || 0 }));
+  if (peopleWithBalances.length === 0) {
+    balEl.innerHTML = '<div class="empty">Add people in Settings to start splitting expenses</div>';
+  } else {
+    balEl.innerHTML = peopleWithBalances
+      .sort((a,b) => b.owed - a.owed)
+      .map(({ p, owed }) => {
+        const monthOwed = monthBalances[p.id] || 0;
+        return `
+          <div class="category-row">
+            <div class="info">
+              <div class="name">${escapeHtml(p.name)}</div>
+              <div class="nums">${owed > 0 ? `Owes you ${fmt(owed)} total` : 'All settled'}${monthOwed > 0 ? ` · ${fmt(monthOwed)} this month` : ''}</div>
+            </div>
+            <div class="txn-actions">
+              ${owed > 0 ? `<button class="icon-btn pay" onclick="settleAllForPerson('${p.id}')">Settle all</button>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+  }
+
+  renderSharedTxns();
+}
+
+function selectSplitPerson(pid) {
+  const tabsEl = document.getElementById('split-person-tabs');
+  tabsEl.dataset.selected = pid;
+  renderSharedTxns();
+}
+
+function renderSharedTxns() {
+  const tabsEl = document.getElementById('split-person-tabs');
+  const txnsEl = document.getElementById('split-txns');
+
+  const allShared = data.transactions
+    .filter(t => t.shared && t.shared.people && t.shared.people.length > 0)
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  if (data.people.length === 0) {
+    tabsEl.innerHTML = '';
+    txnsEl.innerHTML = '<div class="empty">Add people to start splitting expenses</div>';
+    document.getElementById('split-txn-scope').textContent = '';
+    return;
+  }
+
+  // Resolve selected person — persist via dataset so it survives re-renders
+  let sel = tabsEl.dataset.selected || '';
+  if (!data.people.find(p => p.id === sel)) sel = data.people[0].id;
+  tabsEl.dataset.selected = sel;
+
+  // Person selector buttons
+  tabsEl.innerHTML = data.people.map(p =>
+    `<button class="filter-chip ${p.id === sel ? 'active' : ''}" onclick="selectSplitPerson('${p.id}')">${escapeHtml(p.name)}</button>`
+  ).join('');
+
+  document.getElementById('split-txn-scope').textContent = data.people.find(p => p.id === sel)?.name || '';
+
+  // Transactions for selected person
+  const txns = allShared.filter(t => t.shared.people.includes(sel));
+  if (txns.length === 0) {
+    txnsEl.innerHTML = `<div class="empty">No shared transactions with ${escapeHtml(data.people.find(p=>p.id===sel)?.name || '')}</div>`;
+    return;
+  }
+
+  txnsEl.innerHTML = txns.map(t => {
+    const { byPerson, userShare } = calcShares(t);
+    const settled = t.shared.settled || {};
+    const dt = new Date(t.date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const tCurrency = t.currency || BASE_CURRENCY;
+    const origTotal = fmtIn(t.amount, tCurrency);
+    const sgdTotal = tCurrency !== BASE_CURRENCY ? ` · ${fmt(toBase(t.amount, tCurrency))}` : '';
+    const amt = byPerson[sel] || 0;
+    const isSettled = !!(settled[sel]);
+    const amtDisplay = fmtIn(amt, tCurrency) + (tCurrency !== BASE_CURRENCY ? ` (${fmt(toBase(amt, tCurrency))})` : '');
+    return `
+      <div class="category-row">
+        <div class="info" style="flex:1">
+          <div class="name">${escapeHtml(t.note || t.category)}</div>
+          <div class="nums">${dt} · ${escapeHtml(t.category)} · ${origTotal}${sgdTotal}</div>
+          <div class="nums">Your share: ${fmt(userShare)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-variant-numeric:tabular-nums;font-weight:600;${isSettled ? 'text-decoration:line-through;color:var(--text-faint)' : ''}">${amtDisplay}</span>
+          <input type="checkbox" ${isSettled ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--accent)" onchange="toggleSettled('${t.id}','${sel}')">
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function buildSplitReport() {
+  const tabsEl = document.getElementById('split-person-tabs');
+  const sel = tabsEl ? tabsEl.dataset.selected || '' : '';
+  const person = data.people.find(p => p.id === sel);
+  if (!person) return null;
+
+  const allShared = data.transactions
+    .filter(t => t.shared && t.shared.people && t.shared.people.includes(sel))
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  const allBalances = outstandingByPerson();
+  const totalOwed = allBalances[sel] || 0;
+
+  const lines = [];
+  lines.push(`Split Report — ${person.name}`);
+  lines.push(`Generated: ${new Date().toLocaleDateString(undefined, { year:'numeric', month:'long', day:'numeric' })}`);
+  lines.push(`Total outstanding: ${fmt(totalOwed)}`);
+  lines.push('');
+  lines.push('Transactions:');
+
+  allShared.forEach(t => {
+    const { byPerson } = calcShares(t);
+    const amt = byPerson[sel] || 0;
+    const settled = !!(t.shared.settled && t.shared.settled[sel]);
+    const tCurrency = t.currency || BASE_CURRENCY;
+    const amtStr = fmtIn(amt, tCurrency) + (tCurrency !== BASE_CURRENCY ? ` (${fmt(toBase(amt, tCurrency))})` : '');
+    const status = settled ? '[SETTLED]' : '[PENDING]';
+    const dt = new Date(t.date + 'T00:00:00').toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
+    lines.push(`${status} ${dt}  ${(t.note || t.category).padEnd(25)}  ${amtStr}`);
+  });
+
+  lines.push('');
+  lines.push(`Pending total: ${fmt(totalOwed)}`);
+  return { person, lines, allShared, sel };
+}
+
+function copySplitReport() {
+  const report = buildSplitReport();
+  if (!report) { alert('Select a person first.'); return; }
+  navigator.clipboard.writeText(report.lines.join('\n'))
+    .then(() => alert(`Report for ${report.person.name} copied to clipboard!`))
+    .catch(() => alert('Could not copy — try Export instead.'));
+}
+
+function exportSplitReport() {
+  const report = buildSplitReport();
+  if (!report) { alert('Select a person first.'); return; }
+
+  // Build CSV
+  const rows = [['Status', 'Date', 'Category', 'Note', `Amount (${BASE_CURRENCY})`]];
+  report.allShared.forEach(t => {
+    const { byPerson } = calcShares(t);
+    const amt = toBase(byPerson[report.sel] || 0, t.currency || BASE_CURRENCY);
+    const settled = !!(t.shared.settled && t.shared.settled[report.sel]);
+    const dt = new Date(t.date + 'T00:00:00').toLocaleDateString(undefined, { year:'numeric', month:'2-digit', day:'2-digit' });
+    rows.push([settled ? 'Settled' : 'Pending', dt, t.category, t.note || '', amt.toFixed(2)]);
+  });
+  const allBalances = outstandingByPerson();
+  rows.push(['', '', '', 'Total Outstanding', (allBalances[report.sel] || 0).toFixed(2)]);
+
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `split-${report.person.name.replace(/\s+/g,'_')}-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function openAddPerson() {
+  openSheet(`
+    <h3>Add person</h3>
+    <form onsubmit="savePerson(event)">
+      <input type="hidden" id="f-person-id" value="">
+      <div class="field"><label>Name</label><input type="text" id="f-person-name" required placeholder="e.g. Alice, Mom, Roommate"></div>
+      <button type="submit" class="btn">Save</button>
+    </form>
+  `);
+}
+function savePerson(e) {
+  e.preventDefault();
+  const id = document.getElementById('f-person-id').value;
+  const name = document.getElementById('f-person-name').value.trim();
+  if (!name) return;
+  if (id) {
+    const p = data.people.find(x => x.id === id);
+    if (p) p.name = name;
+  } else {
+    data.people.push({ id: uid(), name });
+  }
+  saveData(); closeSheet(); render();
+}
+function editPerson(id) {
+  const p = data.people.find(x => x.id === id);
+  if (!p) return;
+  openAddPerson();
+  setTimeout(() => {
+    document.getElementById('f-person-id').value = p.id;
+    document.getElementById('f-person-name').value = p.name;
+    document.querySelector('.sheet h3').textContent = 'Edit person';
+  }, 50);
+}
+function deletePerson(id) {
+  const usedIn = data.transactions.filter(t => t.shared && t.shared.people && t.shared.people.includes(id)).length;
+  const msg = usedIn > 0
+    ? `Delete this person? They appear in ${usedIn} shared transaction${usedIn===1?'':'s'} — those will keep their settlement records but show "(deleted)".`
+    : 'Delete this person?';
+  if (!confirm(msg)) return;
+  data.people = data.people.filter(p => p.id !== id);
+  saveData(); render();
+}
+
+function toggleSettled(txnId, personId) {
+  const t = data.transactions.find(x => x.id === txnId);
+  if (!t || !t.shared) return;
+  if (!t.shared.settled) t.shared.settled = {};
+  t.shared.settled[personId] = !t.shared.settled[personId];
+  saveData(); renderSharedTxns();
+}
+
+function settleAllForPerson(personId) {
+  const name = personName(personId);
+  if (!confirm(`Mark all of ${name}'s outstanding shared costs for ${monthLabel(currentMonth)} as settled?`)) return;
+  for (const t of data.transactions) {
+    if (!t.date.startsWith(currentMonth)) continue;
+    if (!t.shared || !t.shared.people || !t.shared.people.includes(personId)) continue;
+    if (!t.shared.settled) t.shared.settled = {};
+    t.shared.settled[personId] = true;
+  }
+  saveData(); render();
+}
+
+function renderCharts() {
+  if (typeof Chart === 'undefined') return;
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch(e){} });
+  charts = {};
+
+  const dimColor = getComputedStyle(document.body).getPropertyValue('--text-dim').trim() || '#9a9a9a';
+  const palette = ['#34d399','#60a5fa','#fbbf24','#f87171','#a78bfa','#fb923c','#22d3ee','#a3e635','#f472b6','#facc15'];
+
+  const trendCanvas = document.getElementById('chart-trend');
+  if (trendCanvas) {
+    const labels = []; const totals = [];
+    const base = new Date(); base.setDate(1);
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
+      labels.push(d.toLocaleDateString(undefined, { month: 'short' }));
+      totals.push(txnsForMonth(monthKey(d)).reduce((s,t)=>s+userShareOf(t), 0));
+    }
+    charts.trend = new Chart(trendCanvas, {
+      type: 'bar',
+      data: { labels, datasets: [{ data: totals, backgroundColor: '#34d399', borderRadius: 6, maxBarThickness: 36 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmt(ctx.parsed.y) } } },
+        scales: {
+          y: { beginAtZero: true, ticks: { color: dimColor, callback: v => fmt(v) }, grid: { color: 'rgba(128,128,128,0.1)' } },
+          x: { ticks: { color: dimColor }, grid: { display: false } }
+        }
+      }
+    });
+  }
+}
+
+function openSheet(html) {
+  document.getElementById('sheet-content').innerHTML = html;
+  document.getElementById('sheet').classList.add('open');
+  document.getElementById('sheet-backdrop').classList.add('open');
+  setTimeout(() => {
+    const first = document.querySelector('.sheet input:not([type=hidden]):not([type=date]):not([type=checkbox])');
+    if (first) first.focus();
+  }, 250);
+}
+function closeSheet() {
+  document.getElementById('sheet').classList.remove('open');
+  document.getElementById('sheet-backdrop').classList.remove('open');
+}
+
+let _splitMode = '1/2';
+
+function openAddTxn() {
+  const cats = Object.keys(data.budgets);
+  const presetChips = data.presets.length === 0 ? '' : `
+    <div style="margin-bottom: 8px; font-size: 12px; color: var(--text-dim);">Quick add</div>
+    <div class="preset-chips">
+      ${data.presets.map(p => `<button type="button" class="preset-chip" onclick='applyPreset(${JSON.stringify(p).replace(/'/g,"&#39;")})'>${escapeHtml(p.label)}</button>`).join('')}
+    </div>
+  `;
+  _splitMode = '1/2';
+  openSheet(`
+    <h3>Add transaction</h3>
+    ${presetChips}
+    <form onsubmit="saveTxn(event)">
+      <input type="hidden" id="f-id" value="">
+      <div class="field-row">
+        <div class="field"><label>Amount</label><input type="number" step="0.01" min="0" id="f-amount" required inputmode="decimal" placeholder="0.00"></div>
+        <div class="field"><label>Currency</label><select id="f-currency">${activeCurrencies().map(c=>`<option value="${c}">${c}</option>`).join('')}</select></div>
+      </div>
+      <div class="field"><label>Date</label><input type="date" id="f-date" value="${todayISO()}" required></div>
+      <div class="field"><label>Category</label><select id="f-category" required>${cats.map(c=>`<option>${escapeHtml(c)}</option>`).join('')}</select></div>
+      <div class="field"><label>Note (optional)</label><input type="text" id="f-note" placeholder="What was it for?"></div>
+      <div class="checkbox-row"><input type="checkbox" id="f-share-toggle" onchange="toggleShareSection()"><label for="f-share-toggle">Share this expense</label></div>
+      <div id="f-share-section" style="display:none; padding: 12px; background: var(--surface-2); border-radius: 10px; margin-bottom: 12px;">
+        <div class="field" style="margin-bottom: 8px;">
+          <label>Split</label>
+          <div class="segmented" id="f-split-toggle">
+            <button type="button" data-split="1/2" onclick="setSplit('1/2')">1/2 (with 1)</button>
+            <button type="button" data-split="1/3" onclick="setSplit('1/3')">1/3 (with 2)</button>
+            <button type="button" data-split="custom" onclick="setSplit('custom')">Custom</button>
+          </div>
+        </div>
+        <div id="f-share-help" style="color: var(--text-faint); font-size: 12px; margin-bottom: 10px;"></div>
+        <div class="field" style="margin-bottom: 0;">
+          <label>With</label>
+          <div id="f-share-people"></div>
+        </div>
+      </div>
+      <div class="checkbox-row"><input type="checkbox" id="f-save-preset"><label for="f-save-preset">Also save as a quick-add preset</label></div>
+      <button type="submit" class="btn">Save</button>
+    </form>
+  `);
+}
+
+function toggleShareSection() {
+  const on = document.getElementById('f-share-toggle').checked;
+  document.getElementById('f-share-section').style.display = on ? 'block' : 'none';
+  if (on) setSplit(_splitMode);
+}
+
+function setSplit(mode) {
+  _splitMode = mode;
+  document.querySelectorAll('#f-split-toggle button').forEach(b => b.classList.toggle('active', b.dataset.split === mode));
+  const help = document.getElementById('f-share-help');
+  if (mode === '1/2') help.textContent = 'Pick 1 person — you and they each pay half.';
+  else if (mode === '1/3') help.textContent = 'Pick 2 people — the 3 of you each pay a third.';
+  else help.textContent = "Pick people and enter what each owes you. The rest is your share.";
+  renderSharePicker();
+}
+
+function renderSharePicker() {
+  const peopleEl = document.getElementById('f-share-people');
+  if (!peopleEl) return;
+  if (data.people.length === 0) {
+    peopleEl.innerHTML = '<div class="empty" style="padding: 12px 0;">No people yet — add them in the Split tab</div>';
+    return;
+  }
+  const checkedIds = new Set([...document.querySelectorAll('.f-share-person:checked')].map(e => e.value));
+  const customAmts = {};
+  document.querySelectorAll('.f-share-amt').forEach(el => { customAmts[el.dataset.pid] = el.value; });
+  peopleEl.innerHTML = data.people.map(p => {
+    const checked = checkedIds.has(p.id) ? 'checked' : '';
+    const customInput = _splitMode === 'custom'
+      ? `<input type="number" step="0.01" min="0" class="f-share-amt" data-pid="${p.id}" placeholder="0.00" value="${customAmts[p.id] || ''}" style="max-width: 110px;">`
+      : '';
+    return `
+      <div class="checkbox-row" style="justify-content: space-between; padding: 6px 0;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" class="f-share-person" value="${p.id}" ${checked}>
+          <label>${escapeHtml(p.name)}</label>
+        </div>
+        ${customInput}
+      </div>`;
+  }).join('');
+}
+
+function applyPreset(p) {
+  document.getElementById('f-amount').value = p.amount;
+  document.getElementById('f-category').value = p.category;
+  document.getElementById('f-note').value = p.note || '';
+}
+
+function saveTxn(e) {
+  e.preventDefault();
+  const id = document.getElementById('f-id').value;
+  const txn = {
+    id: id || uid(),
+    amount: parseFloat(document.getElementById('f-amount').value),
+    currency: document.getElementById('f-currency').value || BASE_CURRENCY,
+    date: document.getElementById('f-date').value,
+    category: document.getElementById('f-category').value,
+    note: document.getElementById('f-note').value.trim(),
+    shared: null
+  };
+  const shareToggle = document.getElementById('f-share-toggle');
+  if (shareToggle && shareToggle.checked) {
+    const peopleIds = [...document.querySelectorAll('.f-share-person:checked')].map(e => e.value);
+    if (peopleIds.length === 0) { alert('Pick at least one person to share with.'); return; }
+    if (_splitMode === '1/2' && peopleIds.length !== 1) { alert('1/2 split: select exactly 1 person.'); return; }
+    if (_splitMode === '1/3' && peopleIds.length !== 2) { alert('1/3 split: select exactly 2 people.'); return; }
+    const isCustom = _splitMode === 'custom';
+    const shared = { people: peopleIds, split: isCustom ? 'custom' : 'equal' };
+    if (isCustom) {
+      shared.customShares = {};
+      let othersSum = 0;
+      document.querySelectorAll('.f-share-amt').forEach(el => {
+        const pid = el.dataset.pid;
+        if (peopleIds.includes(pid)) {
+          const v = parseFloat(el.value) || 0;
+          shared.customShares[pid] = v;
+          othersSum += v;
+        }
+      });
+      if (othersSum > txn.amount) { alert("Others' shares can't exceed the total amount."); return; }
+    }
+    if (id) {
+      const existing = data.transactions.find(t => t.id === id);
+      if (existing && existing.shared && existing.shared.settled) {
+        shared.settled = {};
+        for (const pid of peopleIds) {
+          if (existing.shared.settled[pid]) shared.settled[pid] = true;
+        }
+      }
+    }
+    txn.shared = shared;
+  }
+  if (id) {
+    const i = data.transactions.findIndex(t=>t.id===id);
+    if (i >= 0) data.transactions[i] = { ...data.transactions[i], ...txn };
+  } else {
+    data.transactions.push(txn);
+  }
+  const savePresetEl = document.getElementById('f-save-preset');
+  if (savePresetEl && savePresetEl.checked) {
+    const label = txn.note || txn.category;
+    data.presets.push({ id: uid(), label, amount: txn.amount, category: txn.category, note: txn.note });
+  }
+  saveData(); closeSheet(); render();
+}
+
+function editTxn(id) {
+  const t = data.transactions.find(x=>x.id===id);
+  if (!t) return;
+  openAddTxn();
+  setTimeout(() => {
+    document.getElementById('f-id').value = t.id;
+    document.getElementById('f-amount').value = t.amount;
+    document.getElementById('f-currency').value = t.currency || BASE_CURRENCY;
+    document.getElementById('f-date').value = t.date;
+    document.getElementById('f-category').value = t.category;
+    document.getElementById('f-note').value = t.note || '';
+    const savePreset = document.getElementById('f-save-preset');
+    if (savePreset) savePreset.parentElement.style.display = 'none';
+    document.querySelector('.sheet h3').textContent = 'Edit transaction';
+    if (t.shared && t.shared.people && t.shared.people.length > 0) {
+      const toggle = document.getElementById('f-share-toggle');
+      toggle.checked = true;
+      let mode;
+      if (t.shared.split === 'custom') mode = 'custom';
+      else if (t.shared.people.length === 1) mode = '1/2';
+      else if (t.shared.people.length === 2) mode = '1/3';
+      else mode = 'custom';
+      _splitMode = mode;
+      toggleShareSection();
+      setSplit(mode);
+      t.shared.people.forEach(pid => {
+        const cb = document.querySelector(`.f-share-person[value="${pid}"]`);
+        if (cb) cb.checked = true;
+      });
+      if (mode === 'custom' && t.shared.customShares) {
+        for (const [pid, v] of Object.entries(t.shared.customShares)) {
+          const inp = document.querySelector(`.f-share-amt[data-pid="${pid}"]`);
+          if (inp) inp.value = v;
+        }
+      }
+    }
+  }, 50);
+}
+
+function deleteTxn(id) {
+  if (!confirm('Delete this transaction?')) return;
+  data.transactions = data.transactions.filter(t=>t.id!==id);
+  saveData(); render();
+}
+
+function openAddCategory() {
+  openSheet(`
+    <h3>Add category</h3>
+    <form onsubmit="saveCategory(event)">
+      <div class="field"><label>Name</label><input type="text" id="f-cat-name" required placeholder="e.g. Coffee"></div>
+      <div class="field"><label>Monthly budget</label><input type="number" step="0.01" min="0" id="f-cat-limit" required inputmode="decimal" placeholder="0.00"></div>
+      <button type="submit" class="btn">Save</button>
+    </form>
+  `);
+}
+function saveCategory(e) {
+  e.preventDefault();
+  const name = document.getElementById('f-cat-name').value.trim();
+  const limit = parseFloat(document.getElementById('f-cat-limit').value);
+  if (!name) return;
+  data.budgets[name] = limit;
+  saveData(); closeSheet(); render();
+}
+function editBudget(name) {
+  const limit = data.budgets[name];
+  openSheet(`
+    <h3>Edit ${escapeHtml(name)}</h3>
+    <form onsubmit="updateBudget(event, '${escapeAttr(name)}')">
+      <div class="field"><label>Monthly budget</label><input type="number" step="0.01" min="0" id="f-cat-limit" required inputmode="decimal" value="${limit}"></div>
+      <button type="submit" class="btn">Save</button>
+    </form>
+  `);
+}
+function updateBudget(e, name) {
+  e.preventDefault();
+  data.budgets[name] = parseFloat(document.getElementById('f-cat-limit').value);
+  saveData(); closeSheet(); render();
+}
+function deleteCategory(name) {
+  const used = data.transactions.some(t=>t.category===name);
+  const msg = used ? `Delete "${name}"? Existing transactions in this category will keep their label.` : `Delete "${name}"?`;
+  if (!confirm(msg)) return;
+  delete data.budgets[name];
+  saveData(); render();
+}
+
+function openAddCurrency() {
+  const existing = data.settings.extraCurrencies || [];
+  const available = ALL_CURRENCIES.filter(c => c !== BASE_CURRENCY && !existing.includes(c));
+  if (available.length === 0) { alert('All supported currencies are already added.'); return; }
+  openSheet(`
+    <h3>Add currency</h3>
+    <form onsubmit="saveCurrency(event)">
+      <div class="field">
+        <label>Currency</label>
+        <select id="f-cur-code">${available.map(c => `<option value="${c}">${c}</option>`).join('')}</select>
+      </div>
+      <div class="field">
+        <label>Exchange rate — 1 [currency] = ? SGD</label>
+        <input type="number" step="0.0001" min="0.0001" id="f-cur-rate" required inputmode="decimal" placeholder="e.g. 0.31">
+      </div>
+      <button type="submit" class="btn">Save</button>
+    </form>
+  `);
+}
+function openEditCurrency(code) {
+  const rate = (data.settings.exchangeRates || {})[code] || '';
+  openSheet(`
+    <h3>Edit ${escapeHtml(code)} rate</h3>
+    <form onsubmit="saveCurrencyEdit(event, '${escapeAttr(code)}')">
+      <div class="field">
+        <label>Exchange rate — 1 ${escapeHtml(code)} = ? SGD</label>
+        <input type="number" step="0.0001" min="0.0001" id="f-cur-rate" required inputmode="decimal" value="${rate}">
+      </div>
+      <button type="submit" class="btn">Save</button>
+    </form>
+  `);
+}
+function saveCurrency(e) {
+  e.preventDefault();
+  const code = document.getElementById('f-cur-code').value;
+  const rate = parseFloat(document.getElementById('f-cur-rate').value);
+  if (!code || isNaN(rate) || rate <= 0) return;
+  if (!data.settings.extraCurrencies) data.settings.extraCurrencies = [];
+  if (!data.settings.exchangeRates) data.settings.exchangeRates = {};
+  if (!data.settings.extraCurrencies.includes(code)) data.settings.extraCurrencies.push(code);
+  data.settings.exchangeRates[code] = rate;
+  saveData(); closeSheet(); render();
+}
+function saveCurrencyEdit(e, code) {
+  e.preventDefault();
+  const rate = parseFloat(document.getElementById('f-cur-rate').value);
+  if (isNaN(rate) || rate <= 0) return;
+  if (!data.settings.exchangeRates) data.settings.exchangeRates = {};
+  data.settings.exchangeRates[code] = rate;
+  saveData(); closeSheet(); render();
+}
+function deleteCurrency(code) {
+  if (!confirm(`Remove ${code}? Existing transactions in ${code} keep their currency label.`)) return;
+  data.settings.extraCurrencies = (data.settings.extraCurrencies || []).filter(c => c !== code);
+  if (data.settings.exchangeRates) delete data.settings.exchangeRates[code];
+  saveData(); render();
+}
+
+function openAddAccount() {
+  openSheet(`
+    <h3>Add account</h3>
+    <form onsubmit="saveAccount(event)">
+      <input type="hidden" id="f-acc-id" value="">
+      <div class="field"><label>Name</label><input type="text" id="f-acc-name" required placeholder="e.g. Checking, Credit card"></div>
+      <div class="field"><label>Type</label><select id="f-acc-type"><option value="asset">Asset (you have)</option><option value="debt">Debt (you owe)</option></select></div>
+      <div class="field"><label>Balance</label><input type="number" step="0.01" min="0" id="f-acc-balance" required inputmode="decimal" placeholder="0.00"></div>
+      <button type="submit" class="btn">Save</button>
+    </form>
+  `);
+}
+function saveAccount(e) {
+  e.preventDefault();
+  const id = document.getElementById('f-acc-id').value;
+  const acc = {
+    id: id || uid(),
+    name: document.getElementById('f-acc-name').value.trim(),
+    type: document.getElementById('f-acc-type').value,
+    balance: parseFloat(document.getElementById('f-acc-balance').value)
+  };
+  if (id) {
+    const i = data.accounts.findIndex(a=>a.id===id);
+    if (i >= 0) data.accounts[i] = acc;
+  } else {
+    data.accounts.push(acc);
+  }
+  saveData(); closeSheet(); render();
+}
+function editAccount(id) {
+  const a = data.accounts.find(x=>x.id===id);
+  if (!a) return;
+  openAddAccount();
+  setTimeout(() => {
+    document.getElementById('f-acc-id').value = a.id;
+    document.getElementById('f-acc-name').value = a.name;
+    document.getElementById('f-acc-type').value = a.type;
+    document.getElementById('f-acc-balance').value = a.balance;
+    document.querySelector('.sheet h3').textContent = 'Edit account';
+  }, 50);
+}
+function deleteAccount(id) {
+  if (!confirm('Delete this account?')) return;
+  data.accounts = data.accounts.filter(a=>a.id!==id);
+  saveData(); render();
+}
+
+function openAddRecurring() {
+  const cats = Object.keys(data.budgets);
+  openSheet(`
+    <h3>Add recurring / bill</h3>
+    <form onsubmit="saveRecurring(event)">
+      <input type="hidden" id="f-rec-id" value="">
+      <div class="field"><label>Name</label><input type="text" id="f-rec-name" required placeholder="e.g. Rent, Netflix, Salary"></div>
+      <div class="field-row">
+        <div class="field"><label>Amount</label><input type="number" step="0.01" min="0" id="f-rec-amount" required inputmode="decimal" placeholder="0.00"></div>
+        <div class="field"><label>Currency</label><select id="f-rec-currency">${activeCurrencies().map(c=>`<option value="${c}">${c}</option>`).join('')}</select></div>
+      </div>
+      <div class="field"><label>Next due</label><input type="date" id="f-rec-next" required value="${todayISO()}"></div>
+      <div class="field"><label>Category</label><select id="f-rec-category" required>${cats.map(c=>`<option>${escapeHtml(c)}</option>`).join('')}</select></div>
+      <div class="field"><label>Frequency</label><select id="f-rec-frequency"><option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="biweekly">Every 2 weeks</option><option value="yearly">Yearly</option></select></div>
+      <div class="checkbox-row"><input type="checkbox" id="f-rec-auto" checked><label for="f-rec-auto">Auto-log each period (uncheck for a bill that needs a "Pay" tap)</label></div>
+      <button type="submit" class="btn">Save</button>
+    </form>
+  `);
+}
+function saveRecurring(e) {
+  e.preventDefault();
+  const id = document.getElementById('f-rec-id').value;
+  const rec = {
+    id: id || uid(),
+    name: document.getElementById('f-rec-name').value.trim(),
+    amount: parseFloat(document.getElementById('f-rec-amount').value),
+    currency: document.getElementById('f-rec-currency').value || BASE_CURRENCY,
+    nextDue: document.getElementById('f-rec-next').value,
+    category: document.getElementById('f-rec-category').value,
+    frequency: document.getElementById('f-rec-frequency').value,
+    autoLog: document.getElementById('f-rec-auto').checked
+  };
+  if (id) {
+    const i = data.recurring.findIndex(r=>r.id===id);
+    if (i >= 0) data.recurring[i] = rec;
+  } else {
+    data.recurring.push(rec);
+  }
+  processRecurring();
+  saveData(); closeSheet(); render();
+}
+function editRecurring(id) {
+  const r = data.recurring.find(x=>x.id===id);
+  if (!r) return;
+  openAddRecurring();
+  setTimeout(() => {
+    document.getElementById('f-rec-id').value = r.id;
+    document.getElementById('f-rec-name').value = r.name;
+    document.getElementById('f-rec-amount').value = r.amount;
+    document.getElementById('f-rec-currency').value = r.currency || BASE_CURRENCY;
+    document.getElementById('f-rec-next').value = r.nextDue;
+    document.getElementById('f-rec-category').value = r.category;
+    document.getElementById('f-rec-frequency').value = r.frequency;
+    document.getElementById('f-rec-auto').checked = r.autoLog;
+    document.querySelector('.sheet h3').textContent = 'Edit recurring';
+  }, 50);
+}
+function deleteRecurring(id) {
+  if (!confirm('Delete this recurring item? Past logged transactions remain.')) return;
+  data.recurring = data.recurring.filter(r=>r.id!==id);
+  saveData(); render();
+}
+
+function openAddPreset() {
+  const cats = Object.keys(data.budgets);
+  openSheet(`
+    <h3>Add preset</h3>
+    <form onsubmit="savePreset(event)">
+      <div class="field"><label>Label (the chip text)</label><input type="text" id="f-pre-label" required placeholder="e.g. Coffee, Gas"></div>
+      <div class="field-row">
+        <div class="field"><label>Amount</label><input type="number" step="0.01" min="0" id="f-pre-amount" required inputmode="decimal" placeholder="0.00"></div>
+        <div class="field"><label>Category</label><select id="f-pre-category" required>${cats.map(c=>`<option>${escapeHtml(c)}</option>`).join('')}</select></div>
+      </div>
+      <div class="field"><label>Note (optional)</label><input type="text" id="f-pre-note" placeholder="Optional default note"></div>
+      <button type="submit" class="btn">Save</button>
+    </form>
+  `);
+}
+function savePreset(e) {
+  e.preventDefault();
+  data.presets.push({
+    id: uid(),
+    label: document.getElementById('f-pre-label').value.trim(),
+    amount: parseFloat(document.getElementById('f-pre-amount').value),
+    category: document.getElementById('f-pre-category').value,
+    note: document.getElementById('f-pre-note').value.trim()
+  });
+  saveData(); closeSheet(); render();
+}
+function deletePreset(id) {
+  if (!confirm('Delete this preset?')) return;
+  data.presets = data.presets.filter(p=>p.id!==id);
+  saveData(); render();
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `finance-tracker-${todayISO()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      if (!confirm('Replace your current data with this file?')) return;
+      data = mergeDefaults(parsed);
+      saveData(); applyTheme(); render();
+    } catch (err) { alert('Invalid JSON file'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+function resetAll() {
+  if (!confirm('Delete ALL your data? This cannot be undone.')) return;
+  if (!confirm('Are you sure? Really delete everything?')) return;
+  data = structuredClone(DEFAULT_DATA);
+  saveData(); applyTheme(); render();
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function escapeAttr(s) { return escapeHtml(s).replace(/'/g, '&#39;'); }
+
+Object.assign(window, {
+  switchView, changeMonth,
+  openAddTxn, applyPreset, saveTxn, editTxn, deleteTxn,
+  openAddCategory, saveCategory, editBudget, updateBudget, deleteCategory,
+  openAddAccount, saveAccount, editAccount, deleteAccount,
+  openAddRecurring, saveRecurring, editRecurring, deleteRecurring, payBill,
+  openAddPreset, savePreset, deletePreset,
+  openAddPerson, savePerson, editPerson, deletePerson,
+  toggleSettled, settleAllForPerson,
+  toggleShareSection, setSplit,
+  openAddCurrency, openEditCurrency, saveCurrency, saveCurrencyEdit, deleteCurrency,
+  changeTheme,
+  setCategoryFilter, onFilterChange, resetFilters,
+  exportData, importData, resetAll, closeSheet,
+  authSendOtp, authVerifyOtp, authBack, authSignOut, syncFromSupabase,
+  toggleAcctMenu, closeAcctMenu
+});
+
+applyTheme();
+processRecurring();
+render();
+</script>
+</body>
+</html>
