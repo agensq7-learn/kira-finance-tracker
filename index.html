@@ -632,6 +632,7 @@ async function syncToSupabase() {
     if (error.code === 'PGRST205') showSyncToast('Sync table missing — run setup SQL in Supabase', true);
     else showSyncToast('Sync failed: ' + error.message, true);
   } else {
+    _lastSyncAt = Date.now();
     const now = new Date();
     updateSyncStatus('ok', 'Synced ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   }
@@ -658,12 +659,40 @@ async function syncFromSupabase() {
   showSyncToast('Synced from cloud ✓', false);
 }
 
+let _realtimeChannel = null;
+
+function setupRealtime(userId) {
+  if (_realtimeChannel) sb.removeChannel(_realtimeChannel);
+  _realtimeChannel = sb.channel('user_data_' + userId)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'user_data',
+      filter: `user_id=eq.${userId}`
+    }, (payload) => {
+      // Ignore echoes from our own saves (updated within last 2s)
+      if (_lastSyncAt && (Date.now() - _lastSyncAt) < 2000) return;
+      if (payload.new && payload.new.data) {
+        data = mergeDefaults(payload.new.data);
+        persistLocal();
+        render();
+        const now = new Date();
+        updateSyncStatus('ok', 'Synced ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        showSyncToast('Updated from another device ✓', false);
+      }
+    })
+    .subscribe();
+}
+
+let _lastSyncAt = null;
+
 sb.auth.onAuthStateChange(async (event, session) => {
   _currentSession = session;
   const screen = document.getElementById('auth-screen');
   if (session) {
     screen.style.display = 'none';
     showAcctWidget(session.user.email);
+    setupRealtime(session.user.id);
     // SIGNED_IN = fresh OTP login; INITIAL_SESSION = returning user on page reload
     if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
       const { data: row, error } = await sb.from('user_data').select('data').eq('user_id', _currentSession.user.id).single();
@@ -685,6 +714,7 @@ sb.auth.onAuthStateChange(async (event, session) => {
   } else {
     screen.style.display = 'flex';
     hideAcctWidget();
+    if (_realtimeChannel) { sb.removeChannel(_realtimeChannel); _realtimeChannel = null; }
   }
 });
 
