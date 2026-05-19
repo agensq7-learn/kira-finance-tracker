@@ -516,91 +516,29 @@
 // ---- Supabase ----
 const SUPABASE_URL = 'https://uvnldqcqndnfbejmixcl.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2bmxkcWNxbmRuZmJlam1peGNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NDUxNDYsImV4cCI6MjA5NDMyMTE0Nn0.QdQKRdo8L05uBcyffC_HFTAD5-5B2JhEm0TxOv_rrz0';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+});
 
-let _authEmail = '';
-let _currentSession = null;
-let _syncStatus = { state: 'idle', text: 'Not synced' };
+// ---- State ----
+let _session      = null;   // set exclusively by onAuthStateChange
+let _authEmail    = '';
+let _syncTimer    = null;
+let _lastSyncAt   = null;
+let _realtimeChannel = null;
 
-function updateSyncStatus(state, text) {
-  _syncStatus = { state, text };
-  const dot = document.getElementById('acct-dot');
+// ---- UI ----
+function setSyncDot(state, text) {
+  const colors = { ok: 'var(--accent)', err: 'var(--danger)', busy: 'var(--warn)', idle: 'var(--text-faint)' };
+  const dot  = document.getElementById('acct-dot');
   const sdot = document.getElementById('acct-status-dot');
   const stxt = document.getElementById('acct-status-text');
-  const colorMap = { ok: 'var(--accent)', err: 'var(--danger)', busy: 'var(--warn)', idle: 'var(--text-faint)' };
-  const cls = { ok: 'ok', err: 'err', busy: 'busy', idle: '' };
-  if (dot) dot.className = 'acct-dot ' + (cls[state] || '');
-  if (sdot) sdot.style.background = colorMap[state] || 'var(--text-faint)';
+  if (dot)  dot.className = 'acct-dot' + (state !== 'idle' ? ' ' + state : '');
+  if (sdot) sdot.style.background = colors[state] || colors.idle;
   if (stxt) stxt.textContent = text;
 }
 
-function toggleAcctMenu() {
-  const menu = document.getElementById('acct-menu');
-  const bd = document.getElementById('acct-backdrop');
-  const open = menu.style.display !== 'none';
-  menu.style.display = open ? 'none' : 'block';
-  bd.style.display = open ? 'none' : 'block';
-}
-function closeAcctMenu() {
-  document.getElementById('acct-menu').style.display = 'none';
-  document.getElementById('acct-backdrop').style.display = 'none';
-}
-
-function showAcctWidget(email) {
-  const btn = document.getElementById('acct-btn');
-  const lbl = document.getElementById('acct-label');
-  const menuEmail = document.getElementById('acct-menu-email');
-  if (btn) btn.style.display = 'flex';
-  if (lbl) lbl.textContent = email.split('@')[0];
-  if (menuEmail) menuEmail.textContent = email;
-}
-function hideAcctWidget() {
-  const btn = document.getElementById('acct-btn');
-  if (btn) btn.style.display = 'none';
-  closeAcctMenu();
-}
-
-async function authSendOtp() {
-  const email = document.getElementById('auth-email').value.trim();
-  document.getElementById('auth-email-error').textContent = '';
-  if (!email) { document.getElementById('auth-email-error').textContent = 'Please enter your email.'; return; }
-  const btn = document.getElementById('auth-send-btn');
-  btn.disabled = true; btn.textContent = 'Sending…';
-  const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
-  btn.disabled = false; btn.textContent = 'Send Code';
-  if (error) { document.getElementById('auth-email-error').textContent = error.message; return; }
-  _authEmail = email;
-  document.getElementById('auth-email-display').textContent = email;
-  document.getElementById('auth-email-step').style.display = 'none';
-  document.getElementById('auth-otp-step').style.display = 'block';
-  setTimeout(() => document.getElementById('auth-otp').focus(), 100);
-}
-
-async function authVerifyOtp() {
-  const token = document.getElementById('auth-otp').value.trim();
-  document.getElementById('auth-otp-error').textContent = '';
-  if (token.length !== 8) { document.getElementById('auth-otp-error').textContent = 'Enter the full 8-digit code.'; return; }
-  const btn = document.getElementById('auth-verify-btn');
-  btn.disabled = true; btn.textContent = 'Verifying…';
-  const { error } = await sb.auth.verifyOtp({ email: _authEmail, token, type: 'email' });
-  btn.disabled = false; btn.textContent = 'Verify';
-  if (error) { document.getElementById('auth-otp-error').textContent = error.message; }
-}
-
-function authBack() {
-  document.getElementById('auth-otp-step').style.display = 'none';
-  document.getElementById('auth-email-step').style.display = 'block';
-  document.getElementById('auth-otp-error').textContent = '';
-  document.getElementById('auth-otp').value = '';
-  setTimeout(() => document.getElementById('auth-email').focus(), 100);
-}
-
-async function authSignOut() {
-  if (!confirm('Sign out? Your data is saved in the cloud.')) return;
-  await sb.auth.signOut();
-}
-
-function showSyncToast(msg, isError) {
+function showToast(msg, isError) {
   let t = document.getElementById('sync-toast');
   if (!t) {
     t = document.createElement('div');
@@ -616,135 +554,179 @@ function showSyncToast(msg, isError) {
   t._hide = setTimeout(() => { t.style.opacity = '0'; }, 3000);
 }
 
-let _syncTimer = null;
+function showAcctWidget(email) {
+  const btn = document.getElementById('acct-btn');
+  if (btn) btn.style.display = 'flex';
+  const lbl = document.getElementById('acct-label');
+  if (lbl) lbl.textContent = email.split('@')[0];
+  const me = document.getElementById('acct-menu-email');
+  if (me) me.textContent = email;
+}
 
-async function _doUpsert(session) {
+function hideAcctWidget() {
+  const btn = document.getElementById('acct-btn');
+  if (btn) btn.style.display = 'none';
+  closeAcctMenu();
+  setSyncDot('idle', 'Not signed in');
+}
+
+function toggleAcctMenu() {
+  const menu = document.getElementById('acct-menu');
+  const bd   = document.getElementById('acct-backdrop');
+  if (!menu) return;
+  const open = menu.style.display !== 'none';
+  menu.style.display = open ? 'none' : 'block';
+  bd.style.display   = open ? 'none' : 'block';
+}
+
+function closeAcctMenu() {
+  const menu = document.getElementById('acct-menu');
+  const bd   = document.getElementById('acct-backdrop');
+  if (menu) menu.style.display = 'none';
+  if (bd)   bd.style.display   = 'none';
+}
+
+// ---- Auth ----
+async function authSendOtp() {
+  const email = document.getElementById('auth-email').value.trim();
+  document.getElementById('auth-email-error').textContent = '';
+  if (!email) { document.getElementById('auth-email-error').textContent = 'Please enter your email.'; return; }
+  const btn = document.getElementById('auth-send-btn');
+  btn.disabled = true; btn.textContent = 'Sending…';
+  const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+  btn.disabled = false; btn.textContent = 'Send Code';
+  if (error) { document.getElementById('auth-email-error').textContent = error.message; return; }
+  _authEmail = email;
+  document.getElementById('auth-email-display').textContent = email;
+  document.getElementById('auth-email-step').style.display = 'none';
+  document.getElementById('auth-otp-step').style.display   = 'block';
+  setTimeout(() => document.getElementById('auth-otp').focus(), 100);
+}
+
+async function authVerifyOtp() {
+  const token = document.getElementById('auth-otp').value.trim();
+  document.getElementById('auth-otp-error').textContent = '';
+  if (token.length !== 8) { document.getElementById('auth-otp-error').textContent = 'Enter the full 8-digit code.'; return; }
+  const btn = document.getElementById('auth-verify-btn');
+  btn.disabled = true; btn.textContent = 'Verifying…';
+  const { error } = await sb.auth.verifyOtp({ email: _authEmail, token, type: 'email' });
+  btn.disabled = false; btn.textContent = 'Verify';
+  if (error) { document.getElementById('auth-otp-error').textContent = error.message; }
+}
+
+function authBack() {
+  document.getElementById('auth-otp-step').style.display  = 'none';
+  document.getElementById('auth-email-step').style.display = 'block';
+  document.getElementById('auth-otp-error').textContent   = '';
+  document.getElementById('auth-otp').value               = '';
+  setTimeout(() => document.getElementById('auth-email').focus(), 100);
+}
+
+async function authSignOut() {
+  if (!confirm('Sign out? Your data is saved in the cloud.')) return;
+  await sb.auth.signOut();
+  // onAuthStateChange fires → session = null → login screen shown automatically
+}
+
+// ---- Sync: push local → cloud ----
+async function syncToSupabase() {
+  if (!_session) return;
+  setSyncDot('busy', 'Syncing…');
   const ctrl = new AbortController();
-  const tid = setTimeout(() => ctrl.abort(), 15000);
+  const tid  = setTimeout(() => ctrl.abort(), 15000);
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/user_data`, {
       method: 'POST',
       signal: ctrl.signal,
       headers: {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': 'Bearer ' + session.access_token,
-        'Content-Type': 'application/json',
-        'Prefer': 'resolution=merge-duplicates'
+        'apikey':        SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + _session.access_token,
+        'Content-Type':  'application/json',
+        'Prefer':        'resolution=merge-duplicates'
       },
-      body: JSON.stringify({
-        user_id: session.user.id,
-        data: data,
-        updated_at: new Date().toISOString()
-      })
+      body: JSON.stringify({ user_id: _session.user.id, data, updated_at: new Date().toISOString() })
     });
     clearTimeout(tid);
-    if (!res.ok) {
-      const body = await res.text();
-      throw new Error(body || ('HTTP ' + res.status));
-    }
-  } finally {
-    clearTimeout(tid);
-  }
-}
-
-async function syncToSupabase() {
-  if (!_currentSession) return;
-  updateSyncStatus('busy', 'Syncing…');
-  try {
-    await _doUpsert(_currentSession);
+    if (!res.ok) throw new Error((await res.text()) || 'HTTP ' + res.status);
     _lastSyncAt = Date.now();
-    updateSyncStatus('ok', 'Synced ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    setSyncDot('ok', 'Synced ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   } catch (e) {
-    console.warn('[sync] attempt 1 failed:', e.message, '— retrying…');
-    try {
-      await _doUpsert(_currentSession);
-      _lastSyncAt = Date.now();
-      updateSyncStatus('ok', 'Synced ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    } catch (e2) {
-      console.error('[sync] failed:', e2.message);
-      updateSyncStatus('err', 'Sync failed');
-      showSyncToast(e2.name === 'AbortError' ? 'Sync timed out — check connection' : 'Sync failed: ' + e2.message, true);
-    }
+    clearTimeout(tid);
+    console.error('[kira push]', e.message);
+    setSyncDot('err', e.name === 'AbortError' ? 'Timed out' : 'Sync failed');
+    showToast(e.name === 'AbortError' ? 'Sync timed out — check connection' : 'Sync failed: ' + e.message, true);
   }
 }
 
+// ---- Sync: pull cloud → local ----
 async function syncFromSupabase() {
-  if (!_currentSession) { showSyncToast('Not signed in', true); return; }
-  showSyncToast('Syncing…', false);
-  const { data: row, error } = await sb.from('user_data').select('data').eq('user_id', _currentSession.user.id).single();
-  if (error) {
-    if (error.code === 'PGRST116') {
-      await syncToSupabase();
-      showSyncToast('Local data uploaded to cloud ✓', false);
-    } else if (error.code === 'PGRST205') {
-      showSyncToast('Sync table missing — run setup SQL in Supabase', true);
+  if (!_session) { showToast('Not signed in', true); return; }
+  setSyncDot('busy', 'Syncing…');
+  const ctrl = new AbortController();
+  const tid  = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/user_data?user_id=eq.${encodeURIComponent(_session.user.id)}&select=data&limit=1`,
+      { signal: ctrl.signal, headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + _session.access_token } }
+    );
+    clearTimeout(tid);
+    if (!res.ok) throw new Error((await res.text()) || 'HTTP ' + res.status);
+    const rows = await res.json();
+    if (!rows.length) {
+      await syncToSupabase();            // nothing in cloud — push local up
+      showToast('Local data uploaded ✓', false);
     } else {
-      showSyncToast('Sync failed: ' + error.message, true);
+      data = mergeDefaults(rows[0].data);
+      persistLocal(); render();
+      _lastSyncAt = Date.now();
+      setSyncDot('ok', 'Synced ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      showToast('Synced from cloud ✓', false);
     }
-    return;
+  } catch (e) {
+    clearTimeout(tid);
+    console.error('[kira pull]', e.message);
+    setSyncDot('err', e.name === 'AbortError' ? 'Timed out' : 'Sync failed');
+    showToast(e.name === 'AbortError' ? 'Sync timed out' : 'Sync failed: ' + e.message, true);
   }
-  if (row && row.data) { data = mergeDefaults(row.data); persistLocal(); render(); }
-  const now = new Date();
-  updateSyncStatus('ok', 'Synced ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-  showSyncToast('Synced from cloud ✓', false);
 }
 
-let _realtimeChannel = null;
-
-function setupRealtime(userId) {
-  if (_realtimeChannel) sb.removeChannel(_realtimeChannel);
-  _realtimeChannel = sb.channel('user_data_' + userId)
-    .on('postgres_changes', {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'user_data',
-      filter: `user_id=eq.${userId}`
-    }, (payload) => {
-      // Ignore echoes from our own saves (updated within last 2s)
-      if (_lastSyncAt && (Date.now() - _lastSyncAt) < 2000) return;
-      if (payload.new && payload.new.data) {
-        data = mergeDefaults(payload.new.data);
-        persistLocal();
-        render();
-        const now = new Date();
-        updateSyncStatus('ok', 'Synced ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-        showSyncToast('Updated from another device ✓', false);
-      }
-    })
-    .subscribe();
-}
-
-let _lastSyncAt = null;
-
-sb.auth.onAuthStateChange(async (event, session) => {
-  _currentSession = session;
-  const screen = document.getElementById('auth-screen');
-  if (session) {
-    screen.style.display = 'none';
-    showAcctWidget(session.user.email);
-    setupRealtime(session.user.id);
-    // SIGNED_IN = fresh OTP login; INITIAL_SESSION = returning user on page reload
-    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-      const { data: row, error } = await sb.from('user_data').select('data').eq('user_id', _currentSession.user.id).single();
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // No cloud data yet — upload local data now
-          await syncToSupabase();
-          setTimeout(() => showSyncToast('Local data uploaded to cloud ✓', false), 300);
-        } else if (error.code === 'PGRST205') {
-          showSyncToast('Sync table missing — run setup SQL in Supabase', true);
-        } else {
-          console.error('Sync load error:', error.message);
-          showSyncToast('Sync failed: ' + error.message, true);
+// ---- Realtime: receive changes from other devices ----
+function startRealtime(userId) {
+  if (_realtimeChannel) return;           // already subscribed — don't double-subscribe
+  _realtimeChannel = sb.channel('kira_' + userId)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_data', filter: `user_id=eq.${userId}` },
+      payload => {
+        if (_lastSyncAt && Date.now() - _lastSyncAt < 3000) return; // ignore own echo
+        if (payload.new?.data) {
+          data = mergeDefaults(payload.new.data);
+          persistLocal(); render();
+          setSyncDot('ok', 'Synced ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+          showToast('Updated from another device ✓', false);
         }
-        return;
-      }
-      if (row && row.data) { data = mergeDefaults(row.data); persistLocal(); render(); setTimeout(() => showSyncToast('Data loaded from cloud ✓', false), 300); }
+      })
+    .subscribe(status => console.log('[kira realtime]', status));
+}
+
+function stopRealtime() {
+  if (_realtimeChannel) { sb.removeChannel(_realtimeChannel); _realtimeChannel = null; }
+}
+
+// ---- Auth state machine — single source of truth ----
+sb.auth.onAuthStateChange(async (event, session) => {
+  console.log('[kira auth]', event, session?.user?.email || '(signed out)');
+  _session = session;
+
+  if (session) {
+    document.getElementById('auth-screen').style.display = 'none';
+    showAcctWidget(session.user.email);
+    startRealtime(session.user.id);
+    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+      await syncFromSupabase();           // pull on login / page reload
     }
   } else {
-    screen.style.display = 'flex';
+    document.getElementById('auth-screen').style.display = 'flex';
     hideAcctWidget();
-    if (_realtimeChannel) { sb.removeChannel(_realtimeChannel); _realtimeChannel = null; }
+    stopRealtime();
   }
 });
 
@@ -809,8 +791,10 @@ function mergeDefaults(obj) {
 function persistLocal() { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
 function saveData() {
   persistLocal();
+  if (!_session) return;
+  setSyncDot('busy', 'Saving…');
   clearTimeout(_syncTimer);
-  _syncTimer = setTimeout(syncToSupabase, 300);
+  _syncTimer = setTimeout(syncToSupabase, 500);
 }
 
 //// ---------- Helpers ----------
