@@ -66,7 +66,7 @@
   header .header-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
   header .month { color: var(--text-faint); font-size: 13px; font-weight: 500; background: transparent; padding: 0; border: none; }
   main { padding: 0 14px; max-width: 720px; margin: 0 auto; }
-  .view { display: none; }
+  .view { display: none; min-height: calc(100svh - 160px); }
   .view.active { display: block; animation: fade 0.18s ease-out; }
   @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
@@ -77,6 +77,7 @@
   }
   .card h2 .h2-right { float: right; text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--text-faint); font-weight: 500; }
   .big-num { font-size: 40px; font-weight: 700; letter-spacing: -0.04em; line-height: 1; }
+  .big-label { font-size: 13px; color: var(--text-faint); margin-top: 6px; }
   .sub { color: var(--text-dim); font-size: 13px; margin-top: 4px; }
   .pos { color: var(--accent); }
   .neg { color: var(--danger); }
@@ -301,9 +302,9 @@
   <!-- DASHBOARD -->
   <section class="view active" id="view-dashboard">
     <div class="month-nav">
-      <button onclick="changeMonth(-1)">‹ Prev</button>
+      <button onclick="changeMonth(-1)">‹</button>
       <div class="label" id="dash-month-label"></div>
-      <button onclick="changeMonth(1)">Next ›</button>
+      <button onclick="changeMonth(1)">›</button>
     </div>
 
     <div class="card" id="dash-bills-card" style="display:none">
@@ -331,8 +332,17 @@
 
   <!-- SUMMARY (formerly TRANSACTIONS) -->
   <section class="view" id="view-transactions">
+    <div class="month-nav">
+      <button onclick="changeMonth(-1)">‹</button>
+      <div class="label" id="txn-month-label"></div>
+      <button onclick="changeMonth(1)">›</button>
+    </div>
+    <div class="card" id="txn-total-card" style="display:none">
+      <div class="big-num" id="txn-total-amount"></div>
+      <div class="big-label">filtered spending</div>
+    </div>
     <div class="card">
-      <h2>All Transactions <span class="h2-right" id="txn-count-label"></span></h2>
+      <h2>Filter</h2>
       <div class="search-bar">
         <input type="text" id="search-input" placeholder="Search note or category…" oninput="onSearchInput()">
         <button class="btn secondary" style="width:auto; padding:0 14px" onclick="resetFilters()">Reset</button>
@@ -349,7 +359,10 @@
         </div>
       </div>
       <button class="btn secondary" style="margin-top:8px" onclick="onFilterChange()">Search</button>
-      <ul class="txn-list" id="txn-list" style="margin-top: 12px"></ul>
+    </div>
+    <div class="card">
+      <h2>Transactions <span class="h2-right" id="txn-count-label"></span></h2>
+      <ul class="txn-list" id="txn-list"></ul>
     </div>
   </section>
 
@@ -427,9 +440,9 @@
   <!-- SPLIT -->
   <section class="view" id="view-split">
     <div class="month-nav">
-      <button onclick="changeMonth(-1)">‹ Prev</button>
+      <button onclick="changeMonth(-1)">‹</button>
       <div class="label" id="split-month-label"></div>
-      <button onclick="changeMonth(1)">Next ›</button>
+      <button onclick="changeMonth(1)">›</button>
     </div>
 
     <div class="card">
@@ -752,14 +765,13 @@ let currentMonth = monthKey(new Date());
 let charts = {};
 
 // Filter state for the Activity view
-function defaultDateRange() {
-  const today = new Date();
-  const from = new Date(today); from.setDate(today.getDate() - 6);
+function monthDateRange(key) {
+  const [y, m] = key.split('-').map(Number);
   const pad = n => String(n).padStart(2,'0');
-  const fmt2 = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  return { from: fmt2(from), to: fmt2(today) };
+  const lastDay = new Date(y, m, 0).getDate();
+  return { from: `${y}-${pad(m)}-01`, to: `${y}-${pad(m)}-${pad(lastDay)}` };
 }
-let filters = { search: '', category: '', ...defaultDateRange() };
+let filters = { search: '', category: '', ...monthDateRange(currentMonth) };
 
 function loadData() {
   try {
@@ -831,6 +843,7 @@ function changeMonth(delta) {
   const [y,m] = currentMonth.split('-').map(Number);
   const d = new Date(y, m-1+delta, 1);
   currentMonth = monthKey(d);
+  filters = { search: '', category: '', ...monthDateRange(currentMonth) };
   render();
 }
 function advanceDate(dateStr, frequency) {
@@ -1056,9 +1069,12 @@ function applyFilters(txns) {
 }
 
 function renderTransactions() {
+  const lbl = document.getElementById('txn-month-label');
+  if (lbl) lbl.textContent = monthLabel(currentMonth);
+
   document.getElementById('filter-from').value = filters.from;
   document.getElementById('filter-to').value = filters.to;
-  // Build category chip filter
+
   const chipsEl = document.getElementById('category-chips');
   const cats = [...new Set(data.transactions.map(t => t.category))].sort();
   chipsEl.innerHTML = cats.map(c => `
@@ -1067,6 +1083,18 @@ function renderTransactions() {
 
   const filtered = applyFilters(data.transactions);
   const sorted = [...filtered].sort((a,b)=>b.date.localeCompare(a.date));
+
+  const isFiltered = filtered.length !== data.transactions.length ||
+    filters.search || filters.category;
+  const totalCard = document.getElementById('txn-total-card');
+  const totalAmt  = document.getElementById('txn-total-amount');
+  if (isFiltered && filtered.length > 0) {
+    const sum = filtered.reduce((s, t) => s + t.amount, 0);
+    totalAmt.textContent = fmt(sum);
+    totalCard.style.display = '';
+  } else {
+    totalCard.style.display = 'none';
+  }
 
   document.getElementById('txn-count-label').textContent =
     filtered.length === data.transactions.length
@@ -1077,7 +1105,6 @@ function renderTransactions() {
   el.innerHTML = sorted.length === 0
     ? '<div class="empty">No transactions match your filters</div>'
     : sorted.map(txnRow).join('');
-
 }
 
 function setCategoryFilter(cat) {
@@ -1095,7 +1122,7 @@ function onSearchInput() {
   renderTransactions();
 }
 function resetFilters() {
-  filters = { search: '', category: '', ...defaultDateRange() };
+  filters = { search: '', category: '', ...monthDateRange(currentMonth) };
   document.getElementById('search-input').value = '';
   document.getElementById('filter-from').value = filters.from;
   document.getElementById('filter-to').value = filters.to;
