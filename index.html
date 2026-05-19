@@ -649,25 +649,19 @@ async function _doUpsert(session) {
 
 async function syncToSupabase() {
   if (!_currentSession) return;
-  // Refresh session token before syncing to avoid stale token errors
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) return;
-  _currentSession = session;
-
   updateSyncStatus('busy', 'Syncing…');
   try {
-    await _doUpsert(session);
+    await _doUpsert(_currentSession);
     _lastSyncAt = Date.now();
     updateSyncStatus('ok', 'Synced ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   } catch (e) {
-    // Retry once on failure
-    console.warn('Sync attempt 1 failed:', e.message, '— retrying…');
+    console.warn('[sync] attempt 1 failed:', e.message, '— retrying…');
     try {
-      await _doUpsert(session);
+      await _doUpsert(_currentSession);
       _lastSyncAt = Date.now();
       updateSyncStatus('ok', 'Synced ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (e2) {
-      console.error('Sync failed after retry:', e2.message);
+      console.error('[sync] failed:', e2.message);
       updateSyncStatus('err', 'Sync failed');
       showSyncToast(e2.name === 'AbortError' ? 'Sync timed out — check connection' : 'Sync failed: ' + e2.message, true);
     }
